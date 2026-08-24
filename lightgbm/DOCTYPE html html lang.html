@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XGBoost vs LightGBM — Interactive ML Concepts</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        xgb: { DEFAULT:'#f59e0b', light:'#fbbf24', dark:'#d97706', glow:'rgba(245,158,11,0.25)' },
+        lgb: { DEFAULT:'#10b981', light:'#34d399', dark:'#059669', glow:'rgba(16,185,129,0.25)' },
+        surface: { 900:'#08090e', 800:'#0f1017', 700:'#161722', 600:'#1e1f2e', 500:'#2a2c3d' }
+      },
+      fontFamily: { display:['Space Grotesk','sans-serif'], body:['DM Sans','sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+  :root { --xgb:#f59e0b; --lgb:#10b981; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:#08090e; color:#e0e0e8; overflow-x:hidden; }
+  h1,h2,h3,h4 { font-family:'Space Grotesk',sans-serif; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:#0f1017; }
+  ::-webkit-scrollbar-thumb { background:#2a2c3d; border-radius:3px; }
+
+  .hero-grid {
+    background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .orb { position:absolute; border-radius:50%; pointer-events:none; }
+  @keyframes orbFloat1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(40px,-30px) scale(1.1)} }
+  @keyframes orbFloat2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-30px,40px) scale(1.15)} }
+  @keyframes pulse-ring { 0%{transform:scale(0.8);opacity:0.6} 100%{transform:scale(1.6);opacity:0} }
+
+  .card { background:#161722; border:1px solid #2a2c3d; border-radius:12px; transition:all 0.3s ease; }
+  .card:hover { border-color:#3a3c4d; background:#1a1b28; }
+
+  .btn { padding:10px 24px; border-radius:8px; font-weight:600; font-size:14px; cursor:pointer; transition:all 0.2s; border:none; outline:none; }
+  .btn:focus-visible { box-shadow:0 0 0 3px rgba(245,158,11,0.4); }
+  .btn-xgb { background:var(--xgb); color:#000; }
+  .btn-xgb:hover { background:#fbbf24; transform:translateY(-1px); }
+  .btn-lgb { background:var(--lgb); color:#000; }
+  .btn-lgb:hover { background:#34d399; transform:translateY(-1px); }
+  .btn-ghost { background:transparent; color:#e0e0e8; border:1px solid #2a2c3d; }
+  .btn-ghost:hover { border-color:#4a4c5d; background:#1a1b28; }
+
+  .slider-wrap input[type=range] {
+    -webkit-appearance:none; width:100%; height:6px; border-radius:3px;
+    background:#2a2c3d; outline:none; cursor:pointer;
+  }
+  .slider-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+    background:var(--xgb); border:2px solid #08090e; cursor:grab;
+  }
+
+  .feature-chip {
+    padding:10px 16px; border-radius:8px; border:1px solid #2a2c3d;
+    background:#161722; cursor:pointer; transition:all 0.25s; user-select:none;
+  }
+  .feature-chip:hover { border-color:#4a4c5d; }
+  .feature-chip.active-xgb { border-color:var(--xgb); background:rgba(245,158,11,0.08); box-shadow:0 0 16px rgba(245,158,11,0.1); }
+  .feature-chip.active-lgb { border-color:var(--lgb); background:rgba(16,185,129,0.08); box-shadow:0 0 16px rgba(16,185,129,0.1); }
+
+  .math-step { opacity:0; transform:translateX(-20px); transition:all 0.5s cubic-bezier(0.22,1,0.36,1); }
+  .math-step.visible { opacity:1; transform:translateX(0); }
+
+  .section-reveal { opacity:0; transform:translateY(30px); transition:all 0.7s cubic-bezier(0.22,1,0.36,1); }
+  .section-reveal.revealed { opacity:1; transform:translateY(0); }
+
+  canvas { display:block; }
+  .tag { font-size:11px; padding:3px 10px; border-radius:20px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:0.01ms!important; transition-duration:0.01ms!important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-50 backdrop-blur-xl bg-surface-900/80 border-b border-surface-500/40" role="navigation" aria-label="Main navigation">
+  <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+    <a href="#" class="font-display font-bold text-lg tracking-tight">
+      <span class="text-xgb">XGB</span><span class="text-surface-500 mx-1">/</span><span class="text-lgb">LGB</span>
+    </a>
+    <div class="hidden md:flex gap-6 text-sm text-gray-400">
+      <a href="#trees" class="hover:text-white transition">Tree Growth</a>
+      <a href="#features" class="hover:text-white transition">Split Gain</a>
+      <a href="#boundary" class="hover:text-white transition">Decision Boundary</a>
+      <a href="#loss" class="hover:text-white transition">Convergence</a>
+      <a href="#math" class="hover:text-white transition">Derivation</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<header class="relative min-h-screen flex items-center justify-center hero-grid overflow-hidden pt-14">
+  <div class="orb w-[500px] h-[500px] bg-xgb/20 blur-[120px] top-[10%] left-[10%]" style="animation:orbFloat1 10s ease-in-out infinite"></div>
+  <div class="orb w-[450px] h-[450px] bg-lgb/20 blur-[120px] bottom-[10%] right-[10%]" style="animation:orbFloat2 12s ease-in-out infinite"></div>
+  <div class="relative z-10 text-center max-w-4xl mx-auto px-6">
+    <div class="inline-flex gap-3 mb-8">
+      <span class="tag bg-xgb/15 text-xgb">XGBoost</span>
+      <span class="tag bg-lgb/15 text-lgb">LightGBM</span>
+    </div>
+    <h1 class="font-display font-extrabold text-5xl sm:text-6xl lg:text-7xl tracking-tight leading-[1.05] mb-6">
+      <span class="text-white">Gradient Boosting,</span><br>
+      <span class="bg-gradient-to-r from-xgb via-yellow-300 to-lgb bg-clip-text text-transparent">Deconstructed</span>
+    </h1>
+    <p class="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+      An interactive exploration of how tree growth strategies, split gain computation, and optimization objectives shape two of the most powerful ML frameworks.
+    </p>
+    <div class="grid sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+      <div class="card p-5 text-left">
+        <div class="text-xgb text-sm font-semibold mb-1">Level-Wise Growth</div>
+        <div class="text-gray-500 text-xs leading-relaxed">Balanced trees, breadth-first expansion. Robust but potentially wasteful on easy splits.</div>
+      </div>
+      <div class="card p-5 text-left">
+        <div class="text-lgb text-sm font-semibold mb-1">Leaf-Wise Growth</div>
+        <div class="text-gray-500 text-xs leading-relaxed">Always splits the highest-gain leaf. Deeper, asymmetric trees that converge faster.</div>
+      </div>
+    </div>
+    <div class="mt-16 animate-bounce">
+      <i class="fa-solid fa-chevron-down text-gray-600"></i>
+    </div>
+  </div>
+</header>
+
+<!-- Section 1: Tree Visualizer -->
+<section id="trees" class="py-24 px-6">
+  <div class="max-w-7xl mx-auto section-reveal">
+    <div class="text-center mb-12">
+      <span class="tag bg-surface-600 text-gray-300 mb-4 inline-block">Visualizer</span>
+      <h2 class="font-display font-bold text-3xl sm:text-4xl mb-3">Tree Growth Strategies</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">Watch how each algorithm decides which node to split next. Drag the depth slider to morph the trees in real time.</p>
+    </div>
+    <!-- Controls -->
+    <div class="flex flex-wrap items-center justify-center gap-6 mb-8">
+      <div class="slider-wrap flex items-center gap-3">
+        <label class="text-sm text-gray-400 whitespace-nowrap">Depth</label>
+        <input type="range" id="depthSlider" min="1" max="5" value="3" class="w-36">
+        <span id="depthVal" class="text-sm font-mono text-xgb w-6 text-center">3</span>
+      </div>
+      <div class="slider-wrap flex items-center gap-3">
+        <label class="text-sm text-gray-400 whitespace-nowrap">Speed</label>
+        <input type="range" id="speedSlider" min="1" max="10" value="5" class="w-36">
+      </div>
+      <button id="treePlayBtn" class="btn btn-ghost text-sm" aria-label="Play or pause tree animation">
+        <i class="fa-solid fa-play mr-2"></i>Play
+      </button>
+      <button id="treeResetBtn" class="btn btn-ghost text-sm" aria-label="Reset tree animation">
+        <i class="fa-solid fa-rotate-right mr-2"></i>Reset
+      </button>
+    </div>
+    <!-- Canvases -->
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="card p-4 relative overflow-hidden">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-3 h-3 rounded-full bg-xgb"></div>
+          <span class="font-display font-semibold text-sm text-xgb">Level-Wise (XGBoost)</span>
+        </div>
+        <canvas id="treeCanvasLW" width="600" height="420" class="w-full rounded-lg" style="background:#0c0d14"></canvas>
+      </div>
+      <div class="card p-4 relative overflow-hidden">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-3 h-3 rounded-full bg-lgb"></div>
+          <span class="font-display font-semibold text-sm text-lgb">Leaf-Wise (LightGBM)</span>
+        </div>
+        <canvas id="treeCanvasLfW" width="600" height="420" class="w-full rounded-lg" style="background:#0c0d14"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 2: Feature Nodes & Split Gain -->
+<section id="features" class="py-24 px-6 bg-surface-800/50">
+  <div class="max-w-7xl mx-auto section-reveal">
+    <div class="text-center mb-12">
+      <span class="tag bg-surface-600 text-gray-300 mb-4 inline-block">Split Gain</span>
+      <h2 class="font-display font-bold text-3xl sm:text-4xl mb-3">Gradient-Based Split Selection</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">Click features to assign them to the split. Watch the gain computation update live with real gradient and Hessian values.</p>
+    </div>
+    <div class="grid lg:grid-cols-5 gap-6">
+      <!-- Feature Pool -->
+      <div class="lg:col-span-2">
+        <h3 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Feature Pool</h3>
+        <div id="featurePool" class="grid grid-cols-2 gap-3"></div>
+      </div>
+      <!-- Gain Calculation -->
+      <div class="lg:col-span-3 card p-6">
+        <h3 class="text-sm font-semibold text-gray-400 mb-4 uppercase tracking-wider">Live Gain Computation</h3>
+        <div id="gainDisplay" class="space-y-4 font-mono text-sm"></div>
+        <div class="mt-6 grid grid-cols-2 gap-4">
+          <div class="slider-wrap">
+            <label class="text-xs text-gray-500 block mb-1">Lambda (λ)</label>
+            <input type="range" id="lambdaSlider" min="0" max="20" value="1" step="0.5">
+            <span id="lambdaVal" class="text-xs text-xgb">1.0</span>
+          </div>
+          <div class="slider-wrap">
+            <label class="text-xs text-gray-500 block mb-1">Gamma (γ)</label>
+            <input type="range" id="gammaSlider" min="0" max="5" value="0.1" step="0.1">
+            <span id="gammaVal" class="text-xs text-xgb">0.1</span>
+          </div>
+        </div>
+        <div class="mt-6 p-4 rounded-lg bg-surface-900 border border-surface-500">
+          <div class="text-xs text-gray-500 mb-1">Best Split Gain</div>
+          <div id="bestGain" class="text-3xl font-display font-bold text-xgb">0.000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 3: Decision Boundary -->
+<section id="boundary" class="py-24 px-6">
+  <div class="max-w-7xl mx-auto section-reveal">
+    <div class="text-center mb-12">
+      <span class="tag bg-surface-600 text-gray-300 mb-4 inline-block">Boundary</span>
+      <h2 class="font-display font-bold text-3xl sm:text-4xl mb-3">Decision Boundary Surface</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">Train a gradient boosted model on 2D data. Adjust hyperparameters to see how tree depth and learning rate shape the boundary.</p>
+    </div>
+    <div class="grid lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 card p-4">
+        <canvas id="boundaryCanvas" width="560" height="560" class="w-full rounded-lg" style="background:#0a0b10"></canvas>
+      </div>
+      <div class="space-y-4">
+        <div class="card p-5">
+          <h3 class="text-sm font-semibold text-gray-400 mb-4 uppercase tracking-wider">Hyperparameters</h3>
+          <div class="space-y-4">
+            <div class="slider-wrap">
+              <label class="text-xs text-gray-500 flex justify-between"><span>Max Depth</span><span id="hpDepthVal" class="text-xgb">3</span></label>
+              <input type="range" id="hpDepth" min="1" max="8" value="3">
+            </div>
+            <div class="slider-wrap">
+              <label class="text-xs text-gray-500 flex justify-between"><span>Learning Rate</span><span id="hpLrVal" class="text-xgb">0.3</span></label>
+              <input type="range" id="hpLr" min="1" max="100" value="30">
+            </div>
+            <div class="slider-wrap">
+              <label class="text-xs text-gray-500 flex justify-between"><span>Estimators</span><span id="hpEstVal" class="text-xgb">50</span></label>
+              <input type="range" id="hpEst" min="5" max="200" value="50" step="5">
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="text-xs text-gray-500 block mb-2">Data Pattern</label>
+            <div class="flex gap-2">
+              <button class="btn btn-ghost text-xs flex-1 data-pattern active" data-pattern="circles">Circles</button>
+              <button class="btn btn-ghost text-xs flex-1 data-pattern" data-pattern="moons">Moons</button>
+              <button class="btn btn-ghost text-xs flex-1 data-pattern="xor">XOR</button>
+            </div>
+          </div>
+          <button id="trainBtn" class="btn btn-xgb w-full mt-5"><i class="fa-solid fa-bolt mr-2"></i>Train Model</button>
+        </div>
+        <div class="card p-5">
+          <h3 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">Training Info</h3>
+          <div id="trainInfo" class="text-xs text-gray-500 space-y-1">
+            <div>Click "Train Model" to begin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 4: Loss Function Convergence -->
+<section id="loss" class="py-24 px-6 bg-surface-800/50">
+  <div class="max-w-7xl mx-auto section-reveal">
+    <div class="text-center mb-12">
+      <span class="tag bg-surface-600 text-gray-300 mb-4 inline-block">Convergence</span>
+      <h2 class="font-display font-bold text-3xl sm:text-4xl mb-3">Loss Function Feedback</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">Watch the color pulse from hot to cool as the model converges. XGBoost's level-wise approach trades speed for stability.</p>
+    </div>
+    <div class="card p-6 relative overflow-hidden">
+      <div id="lossGlow" class="absolute inset-0 pointer-events-none transition-all duration-300"></div>
+      <canvas id="lossCanvas" width="1100" height="340" class="w-full rounded-lg relative z-10" style="background:transparent"></canvas>
+    </div>
+    <div class="flex justify-center gap-8 mt-6 text-sm">
+      <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-xgb"></div><span class="text-gray-400">XGBoost Loss</span></div>
+      <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-lgb"></div><span class="text-gray-400">LightGBM Loss</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 5: Math Derivations -->
+<section id="math" class="py-24 px-6">
+  <div class="max-w-4xl mx-auto section-reveal">
+    <div class="text-center mb-12">
+      <span class="tag bg-surface-600 text-gray-300 mb-4 inline-block">Derivation</span>
+      <h2 class="font-display font-bold text-3xl sm:text-4xl mb-3">Step-by-Step Objective Derivation</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">Click through each step to see how XGBoost derives its split gain formula from first principles.</p>
+    </div>
+    <div class="card p-8">
+      <div id="mathSteps" class="space-y-6 min-h-[400px]"></div>
+      <div class="flex items-center justify-between mt-8 pt-6 border-t border-surface-500">
+        <button id="mathPrev" class="btn btn-ghost text-sm" disabled><i class="fa-solid fa-arrow-left mr-2"></i>Previous</button>
+        <div class="flex items-center gap-2">
+          <span id="mathProgress" class="text-xs text-gray-500">Step 0 / 0</span>
+          <div class="w-32 h-1.5 bg-surface-600 rounded-full overflow-hidden">
+            <div id="mathBar" class="h-full bg-xgb rounded-full transition-all duration-500" style="width:0%"></div>
+          </div>
+        </div>
+        <button id="mathNext" class="btn btn-xgb text-sm">Next<i class="fa-solid fa-arrow-right ml-2"></i></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="py-12 px-6 border-t border-surface-500/40">
+  <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+    <span class="font-display font-semibold text-gray-400"><span class="text-xgb">XGB</span>/<span class="text-lgb">LGB</span> Interactive Explorer</span>
+    <span>Built for learning, not for production ML pipelines.</span>
+  </div>
+</footer>
+
+<script>
+// ========================================================================
+// UTILITIES
+// ========================================================================
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeOutBack = t => { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+const mean = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+const variance = arr => { const m = mean(arr); return mean(arr.map(v => (v - m) ** 2)); };
+
+function renderKatex(el, tex, displayMode = true) {
+  if (typeof katex !== 'undefined') {
+    try { el.innerHTML = katex.renderToString(tex, { displayMode, throwOnError: false }); }
+    catch(e) { el.textContent = tex; }
+  } else { el.textContent = tex; }
+}
+
+// ========================================================================
+// SECTION REVEAL (IntersectionObserver)
+// ========================================================================
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.section-reveal').forEach(el => revealObs.observe(el));
+
+// ========================================================================
+// TREE VISUALIZER
+// ========================================================================
+const FEATURES = ['Age','Income','Edu','Credit','Debt','Savings'];
+const TREE_COLORS = { xgb: '#f59e0b', lgb: '#10b981' };
+
+class TreeViz {
+  constructor(canvasId, strategy) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas.getContext('2d');
+    this.strategy = strategy; // 'level' or 'leaf'
+    this.color = strategy === 'level' ? TREE_COLORS.xgb : TREE_COLORS.lgb;
+    this.nodes = [];
+    this.edges = [];
+    this.nextId = 0;
+    this.maxDepth = 3;
+    this.revealIndex = 0;
+    this.revealOrder = [];
+    this.playing = false;
+    this.lastStepTime = 0;
+    this.stepInterval = 800;
+    this.animStart = 0;
+  }
+
+  buildTree() {
+    this.nodes = [];
+    this.edges = [];
+    this.nextId = 0;
+    this.revealIndex = 0;
+    this.revealOrder = [];
+
+    if (this.strategy === 'level') {
+      this._buildLevelWise(0, null, null, this.maxDepth);
+      // Reveal order: level by level
+      for (let d = 0; d <= this.maxDepth; d++) {
+        this.nodes.filter(n => n.depth === d).forEach(n => this.revealOrder.push(n.id));
+      }
+    } else {
+      this._buildLeafWise(this.maxDepth * 2 + 1); // more leaves for leaf-wise
+      // Reveal order: root, then by gain priority
+      this.revealOrder.push(0); // root
+      let leaves = this.nodes.filter(n => n.isLeaf && n.id !== 0);
+      leaves.sort((a, b) => b.gain - a.gain);
+      for (const leaf of leaves) {
+        // find children of this leaf (they were created when it split)
+        const children = this.nodes.filter(n => n.parentId === leaf.id);
+        // Actually for leaf-wise, we need to restructure.
+        // Let me rebuild differently.
+      }
+      // Simpler approach: pre-compute leaf-wise order
+      this._computeLeafWiseOrder();
+    }
+
+    this.layoutNodes();
+    // Set reveal times
+    const speed = parseInt(document.getElementById('speedSlider').value) || 5;
+    this.stepInterval = 1200 - speed * 100;
+    this.revealOrder.forEach((id, i) => {
+      const node = this.nodes.find(n => n.id === id);
+      if (node) node.revealTime = i * this.stepInterval;
+    });
+    this.animStart = performance.now();
+  }
+
+  _buildLevelWise(depth, parentId, side, maxD) {
+    const id = this.nextId++;
+    const isLeaf = depth >= maxD;
+    const node = {
+      id, depth, parentId, side, isLeaf,
+      feature: FEATURES[depth % FEATURES.length],
+      threshold: (Math.random() * 0.8 + 0.1).toFixed(2),
+      gain: isLeaf ? 0 : parseFloat((Math.random() * 8 + 1).toFixed(2)),
+      value: isLeaf ? parseFloat((Math.random() * 2 - 1).toFixed(3)) : null,
+      x: 0, y: 0, revealTime: 0, targetX: 0, targetY: 0
+    };
+    this.nodes.push(node);
+    if (parentId !== null) this.edges.push({ from: parentId, to: id });
+
+    if (!isLeaf) {
+      this._buildLevelWise(depth + 1, id, 'left', maxD);
+      this._buildLevelWise(depth + 1, id, 'right', maxD);
+    }
+  }
+
+  _buildLeafWise(maxLeaves) {
+    // Build root
+    const id = this.nextId++;
+    this.nodes.push({
+      id, depth: 0, parentId: null, side: null, isLeaf: true,
+      feature: FEATURES[0], threshold: '0.50', gain: 0,
+      value: 0, x: 0, y: 0, revealTime: 0
+    });
+
+    let leaves = [this.nodes[0]];
+    let currentMaxDepth = 0;
+
+    while (this.nodes.length < maxLeaves && currentMaxDepth < 8) {
+      // Pick leaf with highest gain
+      leaves.sort((a, b) => b.gain - a.gain);
+      const best = leaves[0];
+      if (best.gain <= 0.5 && leaves.length > 1) break;
+
+      best.isLeaf = false;
+      best.feature = FEATURES[best.depth % FEATURES.length];
+      best.threshold = (Math.random() * 0.8 + 0.1).toFixed(2);
+
+      const newDepth = best.depth + 1;
+      currentMaxDepth = Math.max(currentMaxDepth, newDepth);
+
+      const leftId = this.nextId++;
+      const rightId = this.nextId++;
+      const leftGain = parseFloat((Math.random() * 10).toFixed(2));
+      const rightGain = parseFloat((Math.random() * 10).toFixed(2));
+
+      this.nodes.push({
+        id: leftId, depth: newDepth, parentId: best.id, side: 'left', isLeaf: true,
+        feature: '', threshold: '', gain: leftGain,
+        value: parseFloat((Math.random() * 2 - 1).toFixed(3)), x: 0, y: 0, revealTime: 0
+      });
+      this.nodes.push({
+        id: rightId, depth: newDepth, parentId: best.id, side: 'right', isLeaf: true,
+        feature: '', threshold: '', gain: rightGain,
+        value: parseFloat((Math.random() * 2 - 1).toFixed(3)), x: 0, y: 0, revealTime: 0
+      });
+      this.edges.push({ from: best.id, to: leftId });
+      this.edges.push({ from: best.id, to: rightId });
+
+      leaves = leaves.filter(l => l.id !== best.id);
+      leaves.push(this.nodes.find(n => n.id === leftId));
+      leaves.push(this.nodes.find(n => n.id === rightId));
+    }
+  }
+
+  _computeLeafWiseOrder() {
+    this.revealOrder = [0]; // root first
+    let leaves = [this.nodes[0]];
+    let visited = new Set([0]);
+
+    while (true) {
+      leaves.sort((a, b) => b.gain - a.gain);
+      let found = false;
+      for (const leaf of leaves) {
+        const children = this.nodes.filter(n => n.parentId === leaf.id && !visited.has(n.id));
+        if (children.length === 2) {
+          children.forEach(c => { this.revealOrder.push(c.id); visited.add(c.id); });
+          leaves = leaves.filter(l => l.id !== leaf.id);
+          leaves.push(...children);
+          found = true;
+          break;
+        }
+      }
+      if (!found) break;
+    }
+  }
+
+  layoutNodes() {
+    const W = this.canvas.width, H = this.canvas.height;
+    const pad = 40;
+    const maxD = Math.max(...this.nodes.map(n => n.depth), 1);
+    const levelH = (H - pad * 2) / Math.max(maxD, 1);
+
+    const layout = (nodeId, xMin, xMax, depth) => {
+      const node = this.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+      node.targetX = (xMin + xMax) / 2;
+      node.targetY = pad + depth * levelH;
+      const left = this.nodes.find(n => n.parentId === nodeId && n.side === 'left');
+      const right = this.nodes.find(n => n.parentId === nodeId && n.side === 'right');
+      if (left) layout(left.id, xMin, (xMin + xMax) / 2, depth + 1);
+      if (right) layout(right.id, (xMin + xMax) / 2, xMax, depth + 1);
+    };
+
+    const root = this.nodes.find(n => n.parentId === null);
+    if (root) layout(root.id, pad, W - pad, 0);
+  }
+
+  draw(timestamp) {
+    const ctx = this.ctx;
+    const W = this.canvas.width, H = this.canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const elapsed = timestamp - this.animStart;
+
+    // Draw edges
+    for (const edge of this.edges) {
+      const parent = this.nodes.find(n => n.id === edge.from);
+      const child = this.nodes.find(n => n.id === edge.to);
+      if (!parent || !child) continue;
+
+      const childT = clamp((elapsed - child.revealTime) / 500, 0, 1);
+      if (childT <= 0) continue;
+      const et = easeOutCubic(childT);
+
+      const ex = lerp(parent.targetX, child.targetX, et);
+      const ey = lerp(parent.targetY, child.targetY, et);
+
+      ctx.beginPath();
+      ctx.moveTo(parent.targetX, parent.targetY);
+      ctx.lineTo(ex, ey);
+      ctx.strokeStyle = this.color + '40';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Draw nodes
+    for (const node of this.nodes) {
+      const t = clamp((elapsed - node.revealTime) / 500, 0, 1);
+      if (t <= 0) continue;
+      const st = easeOutBack(clamp(t, 0, 1));
+      const scale = clamp(st, 0, 1.15);
+      const alpha = easeOutCubic(t);
+      const r = node.isLeaf ? 16 : 20;
+      const x = node.targetX, y = node.targetY;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      // Glow for high-gain leaf-wise nodes
+      if (this.strategy === 'leaf' && !node.isLeaf && node.gain > 5) {
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 20;
+      }
+
+      if (node.isLeaf) {
+        // Leaf node - rounded rect
+        const w = 48, h = 24, br = 6;
+        ctx.beginPath();
+        ctx.roundRect(-w/2, -h/2, w, h, br);
+        ctx.fillStyle = this.color + '18';
+        ctx.strokeStyle = this.color + '60';
+        ctx.lineWidth = 1.5;
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = this.color;
+        ctx.font = '600 10px "DM Sans"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.value !== null ? node.value.toFixed(2) : '0', 0, 0);
+      } else {
+        // Internal node - circle
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#161722';
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        // Feature label
+        ctx.fillStyle = '#e0e0e8';
+        ctx.font = '700 10px "Space Grotesk"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.feature, 0, -4);
+        ctx.fillStyle = this.color;
+        ctx.font = '500 8px "DM Sans"';
+        ctx.fillText('≤' + node.threshold, 0, 7);
+      }
+
+      ctx.restore();
+    }
+  }
+}
+
+const treeLW = new TreeViz('treeCanvasLW', 'level');
+const treeLfW = new TreeViz('treeCanvasLfW', 'leaf');
+treeLW.buildTree();
+treeLfW.buildTree();
+
+let treePlaying = false;
+let treeAnimFrame = null;
+
+function treeAnimLoop(ts) {
+  treeLW.draw(ts);
+  treeLfW.draw(ts);
+  if (treePlaying) treeAnimFrame = requestAnimationFrame(treeAnimLoop);
+}
+treeAnimFrame = requestAnimationFrame(treeAnimLoop);
+
+document.getElementById('depthSlider').addEventListener('input', e => {
+  const d = parseInt(e.target.value);
+  document.getElementById('depthVal').textContent = d;
+  treeLW.maxDepth = d;
+  treeLW.buildTree();
+  treeLfW.buildTree();
+  if (!treePlaying) { treeAnimFrame = requestAnimationFrame(treeAnimLoop); }
+});
+
+document.getElementById('speedSlider').addEventListener('input', () => {
+  treeLW.buildTree();
+  treeLfW.buildTree();
+});
+
+document.getElementById('treePlayBtn').addEventListener('click', function() {
+  treePlaying = !treePlaying;
+  this.innerHTML = treePlaying
+    ? '<i class="fa-solid fa-pause mr-2"></i>Pause'
+    : '<i class="fa-solid fa-play mr-2"></i>Play';
+  if (treePlaying) {
+    treeLW.buildTree();
+    treeLfW.buildTree();
+    treeAnimFrame = requestAnimationFrame(treeAnimLoop);
+  }
+});
+
+document.getElementById('treeResetBtn').addEventListener('click', () => {
+  treePlaying = false;
+  document.getElementById('treePlayBtn').innerHTML = '<i class="fa-solid fa-play mr-2"></i>Play';
+  treeLW.maxDepth = parseInt(document.getElementById('depthSlider').value);
+  treeLW.buildTree();
+  treeLfW.buildTree();
+  treeAnimFrame = requestAnimationFrame(treeAnimLoop);
+});
+
+// ========================================================================
+// FEATURE NODES & SPLIT GAIN
+// ========================================================================
+const featureData = [
+  { name:'Age', icon:'fa-user', g:-0.82, h:1.24, side:null },
+  { name:'Income', icon:'fa-dollar-sign', g:1.45, h:0.87, side:null },
+  { name:'Education', icon:'fa-graduation-cap', g:-0.31, h:1.56, side:null },
+  { name:'Credit Score', icon:'fa-star', g:2.10, h:0.65, side:null },
+  { name:'Debt Ratio', icon:'fa-chart-line', g:-1.67, h:1.10, side:null },
+  { name:'Savings', icon:'fa-piggy-bank', g:0.93, h:0.92, side:null },
+];
+
+function renderFeaturePool() {
+  const pool = document.getElementById('featurePool');
+  pool.innerHTML = '';
+  featureData.forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'feature-chip' + (f.side === 'left' ? ' active-xgb' : f.side === 'right' ? ' active-lgb' : '');
+    chip.setAttribute('role', 'button');
+    chip.setAttribute('tabindex', '0');
+    chip.setAttribute('aria-label', `Feature ${f.name}, gradient ${f.g}, Hessian ${f.h}. Click to cycle assignment.`);
+    chip.innerHTML = `
+      <div class="flex items-center gap-2 mb-1">
+        <i class="fa-solid ${f.icon} text-xs ${f.side === 'left' ? 'text-xgb' : f.side === 'right' ? 'text-lgb' : 'text-gray-500'}"></i>
+        <span class="text-xs font-semibold">${f.name}</span>
+      </div>
+      <div class="text-[10px] text-gray-500">g=${f.g.toFixed(2)} h=${f.h.toFixed(2)}</div>
+      ${f.side ? `<div class="text-[10px] mt-1 ${f.side === 'left' ? 'text-xgb' : 'text-lgb'}">${f.side === 'left' ? '← Left' : 'Right →'}</div>` : ''}
+    `;
+    chip.addEventListener('click', () => {
+      // Cycle: null -> left -> right -> null
+      if (!f.side) f.side = 'left';
+      else if (f.side === 'left') f.side = 'right';
+      else f.side = null;
+      renderFeaturePool();
+      updateGainDisplay();
+    });
+    chip.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chip.click(); } });
+    pool.appendChild(chip);
+  });
+}
+
+function updateGainDisplay() {
+  const lambda = parseFloat(document.getElementById('lambdaSlider').value);
+  const gamma = parseFloat(document.getElementById('gammaSlider').value);
+  document.getElementById('lambdaVal').textContent = lambda.toFixed(1);
+  document.getElementById('gammaVal').textContent = gamma.toFixed(1);
+
+  const leftFeatures = featureData.filter(f => f.side === 'left');
+  const rightFeatures = featureData.filter(f => f.side === 'right');
+
+  const GL = leftFeatures.reduce((s, f) => s + f.g, 0);
+  const HL = leftFeatures.reduce((s, f) => s + f.h, 0);
+  const GR = rightFeatures.reduce((s, f) => s + f.g, 0);
+  const HR = rightFeatures.reduce((s, f) => s + f.h, 0);
+  const G = GL + GR, H = HL + HR;
+
+  const gainLeft = HL > 0 ? (GL * GL) / (HL + lambda) : 0;
+  const gainRight = HR > 0 ? (GR * GR) / (HR + lambda) : 0;
+  const gainBefore = H > 0 ? (G * G) / (H + lambda) : 0;
+  const totalGain = Math.max(0, gainLeft + gainRight - gainBefore - gamma);
+
+  const display = document.getElementById('gainDisplay');
+  display.innerHTML = `
+    <div class="grid grid-cols-3 gap-3 text-center">
+      <div class="p-3 rounded-lg bg-surface-900 border border-xgb/20">
+        <div class="text-[10px] text-gray-500 mb-1">Left Child</div>
+        <div class="text-xgb text-sm">Σg = ${GL.toFixed(2)}</div>
+        <div class="text-xgb/70 text-xs">Σh = ${HL.toFixed(2)}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-surface-900 border border-surface-500">
+        <div class="text-[10px] text-gray-500 mb-1">Total</div>
+        <div class="text-gray-300 text-sm">Σg = ${G.toFixed(2)}</div>
+        <div class="text-gray-500 text-xs">Σh = ${H.toFixed(2)}</div>
+      </div>
+      <div class="p-3 rounded-lg bg-surface-900 border border-lgb/20">
+        <div class="text-[10px] text-gray-500 mb-1">Right Child</div>
+        <div class="text-lgb text-sm">Σg = ${GR.toFixed(2)}</div>
+        <div class="text-lgb/70 text-xs">Σh = ${HR.toFixed(2)}</div>
+      </div>
+    </div>
+    <div class="text-xs text-gray-500 leading-relaxed mt-2">
+      Gain = <span class="text-xgb">(Σg<sub>L</sub>)²/(Σh<sub>L</sub>+λ)</span> + <span class="text-lgb">(Σg<sub>R</sub>)²/(Σh<sub>R</sub>+λ)</span> − <span class="text-gray-300">(Σg)²/(Σh+λ)</span> − γ
+    </div>
+    <div class="text-xs text-gray-600 mt-1 font-mono">
+      = ${gainLeft.toFixed(3)} + ${gainRight.toFixed(3)} − ${gainBefore.toFixed(3)} − ${gamma.toFixed(1)} = <span class="text-white font-bold">${totalGain.toFixed(3)}</span>
+    </div>
+  `;
+  document.getElementById('bestGain').textContent = totalGain.toFixed(3);
+  document.getElementById('bestGain').style.color = totalGain > 0 ? '#f59e0b' : '#ef4444';
+}
+
+document.getElementById('lambdaSlider').addEventListener('input', updateGainDisplay);
+document.getElementById('gammaSlider').addEventListener('input', updateGainDisplay);
+renderFeaturePool();
+updateGainDisplay();
+
+// ========================================================================
+// DECISION BOUNDARY
+// ========================================================================
+let boundaryData = { X: [], y: [] };
+let boundaryModel = null;
+let currentPattern = 'circles';
+
+function generateData(pattern, n = 200) {
+  const X = [], y = [];
+  for (let i = 0; i < n; i++) {
+    let x1, x2, label;
+    if (pattern === 'circles') {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() < 0.5 ? rand(0, 0.4) : rand(0.6, 1.0);
+      x1 = r * Math.cos(angle); x2 = r * Math.sin(angle);
+      label = r < 0.5 ? 1 : -1;
+    } else if (pattern === 'moons') {
+      if (i < n / 2) {
+        const angle = Math.random() * Math.PI;
+        x1 = Math.cos(angle) + rand(-0.15, 0.15);
+        x2 = Math.sin(angle) + rand(-0.15, 0.15);
+        label = 1;
+      } else {
+        const angle = Math.random() * Math.PI;
+        x1 = 1 - Math.cos(angle) + rand(-0.15, 0.15);
+        x2 = -Math.sin(angle) + 0.5 + rand(-0.15, 0.15);
+        label = -1;
+      }
+    } else { // xor
+      x1 = rand(-1, 1); x2 = rand(-1, 1);
+      label = (x1 * x2 > 0) ? 1 : -1;
+    }
+    X.push([x1, x2]);
+    y.push(label);
+  }
+  return { X, y };
+}
+
+// Simple GBDT classifier
+class MicroGBDT {
+  constructor(maxDepth, lr, nEst) {
+    this.maxDepth = maxDepth; this.lr = lr; this.nEst = nEst; this.trees = [];
+  }
+  fit(X, y) {
+    this.trees = [];
+    const n = X.length;
+    let pred = new Float64Array(n);
+    for (let t = 0; t < this.nEst; t++) {
+      const grad = new Float64Array(n);
+      for (let i = 0; i < n; i++) grad[i] = pred[i] - y[i]; // MSE gradient
+      const tree = this._fitTree(X, grad, 0);
+      this.trees.push(tree);
+      for (let i = 0; i < n; i++) pred[i] -= this.lr * this._predictTree(tree, X[i]);
+    }
+  }
+  _fitTree(X, grad, depth) {
+    if (depth >= this.maxDepth || X.length <= 2) return { leaf: true, val: mean(Array.from(grad)) };
+    let bestGain = -Infinity, bestF = 0, bestTh = 0, bestLI = [], bestRI = [];
+    for (let f = 0; f < 2; f++) {
+      const vals = X.map(x => x[f]).sort((a, b) => a - b);
+      for (let k = 0; k < vals.length - 1; k += Math.max(1, Math.floor(vals.length / 20))) {
+        const th = (vals[k] + vals[k + 1]) / 2;
+        const li = [], ri = [];
+        for (let i = 0; i < X.length; i++) { (X[i][f] <= th ? li : ri).push(i); }
+        if (li.length < 2 || ri.length < 2) continue;
+        const totalVar = variance(Array.from(grad));
+        const lv = variance(li.map(i => grad[i]));
+        const rv = variance(ri.map(i => grad[i]));
+        const gain = totalVar - (li.length * lv + ri.length * rv) / X.length;
+        if (gain > bestGain) { bestGain = gain; bestF = f; bestTh = th; bestLI = li; bestRI = ri; }
+      }
+    }
+    if (bestGain <= 0.001) return { leaf: true, val: mean(Array.from(grad)) };
+    return {
+      leaf: false, f: bestF, th: bestTh,
+      left: this._fitTree(bestLI.map(i => X[i]), bestLI.map(i => grad[i]), depth + 1),
+      right: this._fitTree(bestRI.map(i => X[i]), bestRI.map(i => grad[i]), depth + 1)
+    };
+  }
+  _predictTree(tree, x) {
+    if (tree.leaf) return tree.val;
+    return x[tree.f] <= tree.th ? this._predictTree(tree.left, x) : this._predictTree(tree.right, x);
+  }
+  predict(x) {
+    let p = 0;
+    for (const t of this.trees) p -= this.lr * this._predictTree(t, x);
+    return p;
+  }
+}
+
+function drawBoundary() {
+  const canvas = document.getElementById('boundaryCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (!boundaryData.X.length) {
+    ctx.fillStyle = '#3a3c4d';
+    ctx.font = '14px "DM Sans"';
+    ctx.textAlign = 'center';
+    ctx.fillText('Generate data and train to see the boundary', W/2, H/2);
+    return;
+  }
+
+  const range = 1.5;
+  const step = 4;
+
+  // Draw decision regions
+  if (boundaryModel) {
+    const imgData = ctx.createImageData(W, H);
+    for (let py = 0; py < H; py += step) {
+      for (let px = 0; px < W; px += step) {
+        const x1 = (px / W) * 2 * range - range;
+        const x2 = (py / H) * 2 * range - range;
+        const pred = boundaryModel.predict([x1, x2]);
+        const t = clamp((pred + 2) / 4, 0, 1); // normalize
+        // Color: positive = amber tint, negative = emerald tint
+        let r, g, b;
+        if (pred > 0) {
+          r = Math.floor(lerp(20, 245, t * 0.4));
+          g = Math.floor(lerp(25, 158, t * 0.3));
+          b = Math.floor(lerp(35, 11, t * 0.15));
+        } else {
+          r = Math.floor(lerp(20, 16, (1 - t) * 0.4));
+          g = Math.floor(lerp(25, 185, (1 - t) * 0.4));
+          b = Math.floor(lerp(35, 129, (1 - t) * 0.3));
+        }
+        for (let dy = 0; dy < step && py + dy < H; dy++) {
+          for (let dx = 0; dx < step && px + dx < W; dx++) {
+            const idx = ((py + dy) * W + (px + dx)) * 4;
+            imgData.data[idx] = r; imgData.data[idx+1] = g; imgData.data[idx+2] = b; imgData.data[idx+3] = 180;
+          }
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  // Draw data points
+  const scaleX = x => (x + range) / (2 * range) * W;
+  const scaleY = y => (y + range) / (2 * range) * H;
+
+  for (let i = 0; i < boundaryData.X.length; i++) {
+    const [x1, x2] = boundaryData.X[i];
+    const label = boundaryData.y[i];
+    ctx.beginPath();
+    ctx.arc(scaleX(x1), scaleY(x2), 4, 0, Math.PI * 2);
+    ctx.fillStyle = label > 0 ? '#f59e0b' : '#10b981';
+    ctx.fill();
+    ctx.strokeStyle = '#0a0b10';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function initBoundary() {
+  boundaryData = generateData(currentPattern);
+  boundaryModel = null;
+  drawBoundary();
+  document.getElementById('trainInfo').innerHTML = `<div>Data: ${currentPattern}, ${boundaryData.X.length} points</div><div>Model: not trained</div>`;
+}
+
+document.querySelectorAll('.data-pattern').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.data-pattern').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    this.style.borderColor = '#f59e0b';
+    document.querySelectorAll('.data-pattern:not(.active)').forEach(b => b.style.borderColor = '');
+    currentPattern = this.dataset.pattern;
+    initBoundary();
+  });
+});
+// Set initial active style
+document.querySelector('.data-pattern.active').style.borderColor = '#f59e0b';
+
+document.getElementById('hpDepth').addEventListener('input', e => document.getElementById('hpDepthVal').textContent = e.target.value);
+document.getElementById('hpLr').addEventListener('input', e => document.getElementById('hpLrVal').textContent = (e.target.value / 100).toFixed(2));
+document.getElementById('hpEst').addEventListener('input', e => document.getElementById('hpEstVal').textContent = e.target.value);
+
+document.getElementById('trainBtn').addEventListener('click', () => {
+  if (!boundaryData.X.length) initBoundary();
+  const maxDepth = parseInt(document.getElementById('hpDepth').value);
+  const lr = parseInt(document.getElementById('hpLr').value) / 100;
+  const nEst = parseInt(document.getElementById('hpEst').value);
+
+  const t0 = performance.now();
+  boundaryModel = new MicroGBDT(maxDepth, lr, nEst);
+  boundaryModel.fit(boundaryData.X, boundaryData.y);
+  const dt = (performance.now() - t0).toFixed(1);
+
+  drawBoundary();
+
+  // Compute accuracy
+  let correct = 0;
+  for (let i = 0; i < boundaryData.X.length; i++) {
+    const pred = boundaryModel.predict(boundaryData.X[i]);
+    if ((pred > 0 && boundaryData.y[i] > 0) || (pred <= 0 && boundaryData.y[i] <= 0)) correct++;
+  }
+  const acc = (correct / boundaryData.X.length * 100).toFixed(1);
+
+  document.getElementById('trainInfo').innerHTML = `
+    <div>Pattern: ${currentPattern} | Points: ${boundaryData.X.length}</div>
+    <div>Depth: ${maxDepth} | LR: ${lr.toFixed(2)} | Trees: ${nEst}</div>
+    <div>Training time: ${dt}ms</div>
+    <div>Accuracy: <span class="text-xgb font-bold">${acc}%</span></div>
+    <div>Total nodes: ~${boundaryModel.trees.length * Math.pow(2, maxDepth + 1)}</div>
+  `;
+});
+
+initBoundary();
+
+// ========================================================================
+// LOSS FUNCTION COLOR PULSE
+// ========================================================================
+const lossCanvas = document.getElementById('lossCanvas');
+const lossCtx = lossCanvas.getContext('2d');
+const lossGlow = document.getElementById('lossGlow');
+
+function generateLossCurve(n, initLoss, decay, noise) {
+  const losses = [];
+  for (let i = 0; i < n; i++) {
+    losses.push(initLoss * Math.exp(-decay * i) + noise * (Math.random() - 0.5) * Math.exp(-decay * i * 0.5));
+  }
+  return losses;
+}
+
+const xgbLoss = generateLossCurve(150, 2.5, 0.025, 0.15);
+const lgbLoss = generateLossCurve(150, 2.5, 0.035, 0.12);
+
+let lossAnimProgress = 0;
+let lossPlaying = true;
+
+function drawLoss(timestamp) {
+  const W = lossCanvas.width, H = lossCanvas.height;
+  lossCtx.clearRect(0, 0, W, H);
+
+  if (lossPlaying && lossAnimProgress < xgbLoss.length) {
+    lossAnimProgress += 0.5;
+  }
+
+  const idx = Math.floor(Math.min(lossAnimProgress, xgbLoss.length - 1));
+  const currentLoss = (xgbLoss[idx] + lgbLoss[idx]) / 2;
+  const maxLoss = 3;
+
+  // Color pulse based on loss
+  const lossNorm = clamp(currentLoss / maxLoss, 0, 1);
+  // Hot (high loss) -> Cool (low loss)
+  const pr = Math.floor(lerp(16, 239, lossNorm));
+  const pg = Math.floor(lerp(185, 68, lossNorm));
+  const pb = Math.floor(lerp(129, 68, lossNorm));
+  const pulseAlpha = 0.05 + lossNorm * 0.15;
+  const breathe = Math.sin(timestamp * (0.5 + lossNorm * 2)) * 0.5 + 0.5;
+  lossGlow.style.background = `radial-gradient(ellipse at 50% 50%, rgba(${pr},${pg},${pb},${pulseAlpha * breathe}), transparent 70%)`;
+
+  // Grid
+  lossCtx.strokeStyle = '#1e1f2e';
+  lossCtx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = (H - 40) * (1 - i / 5) + 20;
+    lossCtx.beginPath(); lossCtx.moveTo(60, y); lossCtx.lineTo(W - 20, y); lossCtx.stroke();
+    lossCtx.fillStyle = '#4a4c5d';
+    lossCtx.font = '10px "DM Sans"';
+    lossCtx.textAlign = 'right';
+    lossCtx.fillText((maxLoss * i / 5).toFixed(1), 55, y + 3);
+  }
+
+  // X axis labels
+  for (let i = 0; i <= 5; i++) {
+    const x = 60 + (W - 80) * i / 5;
+    lossCtx.fillStyle = '#4a4c5d';
+    lossCtx.font = '10px "DM Sans"';
+    lossCtx.textAlign = 'center';
+    lossCtx.fillText(Math.round(xgbLoss.length * i / 5), x, H - 5);
+  }
+
+  const drawCurve = (losses, color, glowColor) => {
+    const plotW = W - 80, plotH = H - 60;
+    const ox = 60, oy = 20;
+
+    // Glow fill
+    lossCtx.beginPath();
+    lossCtx.moveTo(ox, oy + plotH);
+    for (let i = 0; i <= idx && i < losses.length; i++) {
+      const x = ox + (i / (losses.length - 1)) * plotW;
+      const y = oy + plotH * (1 - clamp(losses[i] / maxLoss, 0, 1));
+      lossCtx.lineTo(x, y);
+    }
+    lossCtx.lineTo(ox + (Math.min(idx, losses.length - 1) / (losses.length - 1)) * plotW, oy + plotH);
+    lossCtx.closePath();
+    const grad = lossCtx.createLinearGradient(0, oy, 0, oy + plotH);
+    grad.addColorStop(0, glowColor);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    lossCtx.fillStyle = grad;
+    lossCtx.fill();
+
+    // Line
+    lossCtx.beginPath();
+    for (let i = 0; i <= idx && i < losses.length; i++) {
+      const x = ox + (i / (losses.length - 1)) * plotW;
+      const y = oy + plotH * (1 - clamp(losses[i] / maxLoss, 0, 1));
+      i === 0 ? lossCtx.moveTo(x, y) : lossCtx.lineTo(x, y);
+    }
+    lossCtx.strokeStyle = color;
+    lossCtx.lineWidth = 2.5;
+    lossCtx.stroke();
+
+    // End dot
+    if (idx > 0 && idx < losses.length) {
+      const ex = ox + (idx / (losses.length - 1)) * plotW;
+      const ey = oy + plotH * (1 - clamp(losses[idx] / maxLoss, 0, 1));
+      lossCtx.beginPath();
+      lossCtx.arc(ex, ey, 4, 0, Math.PI * 2);
+      lossCtx.fillStyle = color;
+      lossCtx.fill();
+      lossCtx.beginPath();
+      lossCtx.arc(ex, ey, 8, 0, Math.PI * 2);
+      lossCtx.strokeStyle = color + '40';
+      lossCtx.lineWidth = 2;
+      lossCtx.stroke();
+    }
+  };
+
+  drawCurve(xgbLoss, '#f59e0b', 'rgba(245,158,11,0.08)');
+  drawCurve(lgbLoss, '#10b981', 'rgba(16,185,129,0.08)');
+
+  requestAnimationFrame(drawLoss);
+}
+requestAnimationFrame(drawLoss);
+
+// ========================================================================
+// MATH DERIVATIONS
+// ========================================================================
+const mathSteps = [
+  { type:'text', content:'We begin with the regularized objective at boosting round t, which adds a new tree f_t to the existing ensemble:' },
+  { type:'math', content:'\\mathcal{L}^{(t)} = \\sum_{i=1}^{n} l\\left(y_i,\\; \\hat{y}_i^{(t-1)} + f_t(x_i)\\right) + \\Omega(f_t)' },
+  { type:'text', content:'Apply a second-order Taylor expansion to the loss around the current prediction ŷ⁽ᵗ⁻¹⁾:' },
+  { type:'math', content:'l\\left(y_i,\\; \\hat{y}_i^{(t-1)} + f_t(x_i)\\right) \\approx l\\left(y_i,\\; \\hat{y}_i^{(t-1)}\\right) + g_i \\, f_t(x_i) + \\tfrac{1}{2} h_i \\, f_t^2(x_i)' },
+  { type:'text', content:'Where the gradient and Hessian of the loss with respect to the prediction are:' },
+  { type:'math', content:'g_i = \\frac{\\partial\\, l(y_i,\\; \\hat{y})}{\\partial\\, \\hat{y}} \\bigg|_{\\hat{y}=\\hat{y}^{(t-1)}}, \\qquad h_i = \\frac{\\partial^2\\, l(y_i,\\; \\hat{y})}{\\partial\\, \\hat{y}^2} \\bigg|_{\\hat{y}=\\hat{y}^{(t-1)}}' },
+  { type:'text', content:'Removing the constant term (it doesn\'t affect optimization), the simplified objective becomes:' },
+  { type:'math', content:'\\tilde{\\mathcal{L}}^{(t)} = \\sum_{i=1}^{n} \\left[ g_i \\, f_t(x_i) + \\tfrac{1}{2} h_i \\, f_t^2(x_i) \\right] + \\Omega(f_t)' },
+  { type:'text', content:'Define the tree structure: f_t(x) = w_{q(x)}, where q: ℝᵈ → {1,2,...,T} maps each sample to a leaf index, and wⱼ is the leaf weight.' },
+  { type:'text', content:'The regularization term penalizes tree complexity via number of leaves T and L2 penalty on weights:' },
+  { type:'math', content:'\\Omega(f_t) = \\gamma \\, T + \\frac{1}{2} \\lambda \\sum_{j=1}^{T} w_j^2' },
+  { type:'text', content:'Reorder the summation by grouping samples by leaf. Let Iⱼ = {i : q(xᵢ) = j}:' },
+  { type:'math', content:'\\tilde{\\mathcal{L}}^{(t)} = \\sum_{j=1}^{T} \\left[ \\left(\\sum_{i \\in I_j} g_i\\right) w_j + \\tfrac{1}{2} \\left(\\sum_{i \\in I_j} h_i + \\lambda\\right) w_j^2 \\right] + \\gamma \\, T' },
+  { type:'text', content:'For a fixed tree structure q(x), this is a quadratic in each wⱼ. Setting ∂𝓛/∂wⱼ = 0 gives the optimal leaf weight:' },
+  { type:'math', content:'w_j^* = -\\frac{\\sum_{i \\in I_j} g_i}{\\sum_{i \\in I_j} h_i + \\lambda}' },
+  { type:'text', content:'Substituting back, the minimum objective for a given structure is:' },
+  { type:'math', content:'\\tilde{\\mathcal{L}}^{(t)*} = -\\frac{1}{2} \\sum_{j=1}^{T} \\frac{\\left(\\sum_{i \\in I_j} g_i\\right)^2}{\\sum_{i \\in I_j} h_i + \\lambda} + \\gamma \\, T' },
+  { type:'text', content:'The gain from splitting a leaf into left (L) and right (R) children is the reduction in objective:' },
+  { type:'math', content:'\\text{Gain} = \\frac{1}{2}\\left[ \\frac{G_L^2}{H_L + \\lambda} + \\frac{G_R^2}{H_R + \\lambda} - \\frac{(G_L + G_R)^2}{H_L + H_R + \\lambda} \\right] - \\gamma' },
+  { type:'text', content:'LightGBM uses the same objective but grows leaf-wise: it always splits the leaf with the highest Gain, producing deeper asymmetric trees. XGBoost grows level-wise, splitting all leaves at each depth, which is more conservative but may waste splits on low-gain leaves.' },
+];
+
+let mathVisible = 0;
+const mathContainer = document.getElementById('mathSteps');
+
+function renderMathSteps() {
+  mathContainer.innerHTML = '';
+  for (let i = 0; i <= mathVisible && i < mathSteps.length; i++) {
+    const step = mathSteps[i];
+    const div = document.createElement('div');
+    div.className = 'math-step' + (i <= mathVisible ? ' visible' : '');
+    div.style.transitionDelay = (i === mathVisible ? '0ms' : '0ms');
+
+    if (step.type === 'text') {
+      div.innerHTML = `<p class="text-gray-300 text-sm leading-relaxed pl-4 border-l-2 ${i % 2 === 0 ? 'border-xgb/30' : 'border-lgb/30'}">${step.content}</p>`;
+    } else {
+      const mathDiv = document.createElement('div');
+      mathDiv.className = 'p-4 rounded-lg bg-surface-900 border border-surface-500 overflow-x-auto';
+      renderKatex(mathDiv, step.content);
+      div.appendChild(mathDiv);
+    }
+    mathContainer.appendChild(div);
+  }
+
+  // Trigger visibility
+  requestAnimationFrame(() => {
+    mathContainer.querySelectorAll('.math-step').forEach(el => el.classList.add('visible'));
+  });
+
+  document.getElementById('mathProgress').textContent = `Step ${mathVisible + 1} / ${mathSteps.length}`;
+  document.getElementById('mathBar').style.width = ((mathVisible + 1) / mathSteps.length * 100) + '%';
+  document.getElementById('mathPrev').disabled = mathVisible === 0;
+  document.getElementById('mathNext').disabled = mathVisible >= mathSteps.length - 1;
+  if (mathVisible >= mathSteps.length - 1) {
+    document.getElementById('mathNext').innerHTML = 'Complete <i class="fa-solid fa-check ml-2"></i>';
+  } else {
+    document.getElementById('mathNext').innerHTML = 'Next <i class="fa-solid fa-arrow-right ml-2"></i>';
+  }
+}
+
+document.getElementById('mathNext').addEventListener('click', () => {
+  if (mathVisible < mathSteps.length - 1) { mathVisible++; renderMathSteps(); }
+});
+document.getElementById('mathPrev').addEventListener('click', () => {
+  if (mathVisible > 0) { mathVisible--; renderMathSteps(); }
+});
+
+// Wait for KaTeX then render
+function tryRenderMath() {
+  if (typeof katex !== 'undefined') {
+    renderMathSteps();
+  } else {
+    setTimeout(tryRenderMath, 100);
+  }
+}
+tryRenderMath();
+
+// ========================================================================
+// AUTO-PLAY TREE MORPHING
+// ========================================================================
+let autoMorphInterval = null;
+let autoMorphDir = 1;
+let autoMorphDepth = 3;
+
+function startAutoMorph() {
+  if (autoMorphInterval) return;
+  autoMorphInterval = setInterval(() => {
+    if (treePlaying) return; // Don't interfere with manual play
+    autoMorphDepth += autoMorphDir;
+    if (autoMorphDepth >= 5) autoMorphDir = -1;
+    if (autoMorphDepth <= 1) autoMorphDir = 1;
+    document.getElementById('depthSlider').value = autoMorphDepth;
+    document.getElementById('depthVal').textContent = autoMorphDepth;
+    treeLW.maxDepth = autoMorphDepth;
+    treeLW.buildTree();
+    treeLfW.buildTree();
+    treeAnimFrame = requestAnimationFrame(ts => { treeLW.draw(ts); treeLfW.draw(ts); });
+  }, 3000);
+}
+
+// Start auto-morph after a delay
+setTimeout(startAutoMorph, 5000);
+
+// Stop auto-morph on any manual interaction
+['depthSlider', 'speedSlider', 'treePlayBtn', 'treeResetBtn'].forEach(id => {
+  document.getElementById(id).addEventListener('click', () => { clearInterval(autoMorphInterval); autoMorphInterval = null; });
+  document.getElementById(id).addEventListener('input', () => { clearInterval(autoMorphInterval); autoMorphInterval = null; });
+});
+
+// Keep tree canvases rendering
+function keepTreeAlive(ts) {
+  if (!treePlaying) {
+    treeLW.draw(ts);
+    treeLfW.draw(ts);
+  }
+  requestAnimationFrame(keepTreeAlive);
+}
+requestAnimationFrame(keepTreeAlive);
+</script>
+</body>
+</html>
