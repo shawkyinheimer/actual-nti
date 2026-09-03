@@ -1,0 +1,2782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LightGBM · Interactive Concept Lab</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<style>
+  :root {
+    --bg: #06070d;
+    --bg-elev: #0d1018;
+    --card: rgba(18, 22, 32, 0.55);
+    --card-solid: #0f131c;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #f0f4ff;
+    --text-dim: #8b95a8;
+    --text-mute: #5a6478;
+    --accent: #00f5a0;
+    --accent-2: #ff6b5e;
+    --accent-3: #ffc857;
+    --accent-4: #4ee5ff;
+    --danger: #ff4d6d;
+    --success: #00f5a0;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .font-display { font-family: 'Syne', sans-serif; letter-spacing: -0.02em; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 245, 160, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 245, 160, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    background-position: -1px -1px;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(800px circle at 20% 10%, rgba(0, 245, 160, 0.08), transparent 50%),
+      radial-gradient(900px circle at 90% 60%, rgba(255, 107, 94, 0.06), transparent 50%),
+      radial-gradient(700px circle at 50% 100%, rgba(78, 229, 255, 0.05), transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glass {
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+  .glass-strong {
+    background: rgba(15, 19, 28, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+
+  .scroll-progress {
+    position: fixed; top: 0; left: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-3), var(--accent-2));
+    z-index: 100; transition: width 0.1s ease;
+    box-shadow: 0 0 12px var(--accent);
+  }
+
+  .topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    backdrop-filter: blur(24px);
+    background: rgba(6, 7, 13, 0.7);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-link {
+    color: var(--text-dim);
+    transition: color 0.2s;
+    position: relative;
+  }
+  .nav-link:hover, .nav-link.active { color: var(--text); }
+  .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -22px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  #hero-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  .hero-grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, transparent 40%, black 100%);
+    pointer-events: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #00d488);
+    color: #06070d;
+    font-weight: 700;
+    padding: 0.7rem 1.4rem;
+    border-radius: 10px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 8px 30px rgba(0, 245, 160, 0.25);
+    display: inline-block;
+    text-decoration: none;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0, 245, 160, 0.4); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    padding: 0.7rem 1.4rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .section-tag {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid rgba(0, 245, 160, 0.3);
+    border-radius: 999px;
+    background: rgba(0, 245, 160, 0.05);
+  }
+  .section-tag::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+  }
+
+  .flow-arrow {
+    color: var(--text-mute);
+    font-size: 1.8rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .code-block {
+    background: #07090f;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    position: relative;
+    margin: 0;
+  }
+  .code-block::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.6;
+  }
+  .tk-key { color: #ff6b5e; }
+  .tk-fn { color: #ffc857; }
+  .tk-str { color: #00f5a0; }
+  .tk-num { color: #4ee5ff; }
+  .tk-cmt { color: #5a6478; font-style: italic; }
+
+  .math-line {
+    opacity: 0;
+    transform: translateX(-12px);
+    transition: opacity 0.5s, transform 0.5s;
+    padding: 0.5rem 0;
+    border-left: 2px solid transparent;
+    padding-left: 1rem;
+    margin-left: -1rem;
+  }
+  .math-line.revealed {
+    opacity: 1;
+    transform: translateX(0);
+    border-left-color: var(--accent);
+  }
+  .math-line .step-num {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .tree-svg { width: 100%; height: 100%; cursor: default; }
+  .drag-handle { cursor: grab; }
+  .drag-handle:active { cursor: grabbing; }
+  .drag-handle:hover .handle-circle { r: 9; }
+
+  input[type=range].lgb-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 999px;
+    outline: none;
+  }
+  input[type=range].lgb-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(0, 245, 160, 0.15), 0 0 12px var(--accent);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  input[type=range].lgb-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type=range].lgb-slider::-moz-range-thumb {
+    width: 18px; height: 18px; border: 0;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(0, 245, 160, 0.15);
+    cursor: pointer;
+  }
+
+  .quiz-option {
+    border: 1px solid var(--border);
+    background: rgba(15, 19, 28, 0.5);
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: 'DM Sans', sans-serif;
+    position: relative;
+    overflow: hidden;
+  }
+  .quiz-option:hover:not(.answered) {
+    border-color: var(--border-strong);
+    background: rgba(20, 25, 35, 0.7);
+    transform: translateX(4px);
+  }
+  .quiz-option.correct {
+    border-color: var(--success);
+    background: rgba(0, 245, 160, 0.12);
+    color: var(--success);
+    animation: pulseGreen 0.8s ease;
+  }
+  .quiz-option.wrong {
+    border-color: var(--danger);
+    background: rgba(255, 77, 109, 0.12);
+    color: var(--danger);
+    animation: pulseRed 0.8s ease;
+  }
+  @keyframes pulseGreen {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 245, 160, 0.5); }
+    50% { box-shadow: 0 0 0 12px rgba(0, 245, 160, 0); }
+  }
+  @keyframes pulseRed {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.5); }
+    50% { box-shadow: 0 0 0 12px rgba(255, 77, 109, 0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s, transform 0.8s;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  .lgb-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.85rem;
+  }
+  .lgb-table th, .lgb-table td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .lgb-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .lgb-table tbody tr:hover { background: rgba(0, 245, 160, 0.04); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    border: 1px solid var(--border);
+    background: rgba(15, 19, 28, 0.6);
+  }
+
+  .fit-meter {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent-4) 0%, var(--accent) 35%, var(--accent-3) 65%, var(--accent-2) 100%);
+    position: relative;
+  }
+  .fit-meter::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    width: 4px; height: 16px;
+    background: white;
+    border-radius: 2px;
+    box-shadow: 0 0 8px white;
+    left: var(--pos, 50%);
+    transition: left 0.3s;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress" style="width:0%"></div>
+
+<nav class="topnav">
+  <div class="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
+    <a href="#hero" class="flex items-center gap-2.5">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="2" y="2" width="24" height="24" rx="7" stroke="url(#lg1)" stroke-width="1.5"/>
+        <path d="M8 18 L12 10 L16 14 L20 8" stroke="#00f5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="8" cy="18" r="2" fill="#00f5a0"/>
+        <circle cx="20" cy="8" r="2" fill="#ff6b5e"/>
+        <defs>
+          <linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28">
+            <stop stop-color="#00f5a0"/>
+            <stop offset="1" stop-color="#ff6b5e"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="font-display font-bold text-lg">LightGBM<span class="text-[var(--accent)]">.</span>Lab</span>
+    </a>
+    <div class="hidden md:flex items-center gap-7 text-sm">
+      <a href="#intro" class="nav-link">Intro</a>
+      <a href="#theory" class="nav-link">Theory</a>
+      <a href="#playground" class="nav-link">Playground</a>
+      <a href="#plotlab" class="nav-link">Plot Lab</a>
+      <a href="#hyperparams" class="nav-link">Tuning</a>
+      <a href="#compare" class="nav-link">Compare</a>
+      <a href="#quiz" class="nav-link">Quiz</a>
+    </div>
+    <a href="#summary" class="btn-primary text-sm">Summary</a>
+  </div>
+</nav>
+
+<section id="hero" class="relative min-h-screen flex items-center overflow-hidden">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-grid-overlay"></div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 w-full pt-20">
+    <div class="max-w-3xl">
+      <div class="section-tag mb-7">Gradient Boosting · Decision Trees · Machine Learning</div>
+      <h1 class="font-display font-extrabold text-5xl md:text-7xl lg:text-8xl leading-[0.95] mb-6">
+        Light<span class="text-[var(--accent)]">GBM</span><br>
+        <span class="text-[var(--text-dim)] font-normal text-3xl md:text-4xl lg:text-5xl">A Powerful Gradient Boosting Algorithm</span>
+      </h1>
+      <p class="text-lg md:text-xl text-[var(--text-dim)] max-w-2xl leading-relaxed mb-9">
+        From theory and mathematical intuition to real-world applications. Drag vertices, plot functions, decode the math — line by line.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="#intro" class="btn-primary">Start exploring</a>
+        <a href="#playground" class="btn-ghost">Open playground →</a>
+      </div>
+
+      <div class="mt-12 flex flex-wrap gap-3">
+        <span class="pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></span>Fast training</span>
+        <span class="pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-2)]"></span>Leaf-wise growth</span>
+        <span class="pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-3)]"></span>Histogram-based</span>
+        <span class="pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-4)]"></span>GBDT family</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-xs text-[var(--text-mute)] font-mono">
+    <span>SCROLL TO BEGIN</span>
+    <svg width="20" height="28" viewBox="0 0 20 28" fill="none" class="animate-bounce">
+      <rect x="1" y="1" width="18" height="26" rx="9" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="10" cy="8" r="2" fill="var(--accent)"/>
+    </svg>
+  </div>
+</section>
+
+<section id="intro" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">01 · Introduction</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-6 leading-tight">What is <span class="text-[var(--accent)]">LightGBM</span>?</h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed">
+        LightGBM (Light Gradient Boosting Machine) is a high-performance gradient boosting framework developed by Microsoft. It belongs to the <span class="text-[var(--text)] font-medium">Gradient Boosting Decision Tree (GBDT)</span> family — using decision trees as weak learners, trained sequentially to correct previous errors.
+      </p>
+    </div>
+
+    <div class="reveal mt-14">
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-4 md:gap-2 items-stretch">
+        <div class="glass p-7">
+          <div class="font-mono text-xs text-[var(--accent-4)] mb-3">STAGE 1</div>
+          <div class="font-display font-bold text-2xl mb-2">Decision Tree</div>
+          <p class="text-sm text-[var(--text-dim)] leading-relaxed">A single tree partitions feature space using if-then rules. Simple, interpretable — but prone to overfitting.</p>
+          <svg viewBox="0 0 200 90" class="mt-4 w-full">
+            <line x1="100" y1="10" x2="50" y2="40" stroke="var(--text-mute)" stroke-width="1.5"/>
+            <line x1="100" y1="10" x2="150" y2="40" stroke="var(--text-mute)" stroke-width="1.5"/>
+            <line x1="50" y1="40" x2="25" y2="70" stroke="var(--text-mute)" stroke-width="1.5"/>
+            <line x1="50" y1="40" x2="75" y2="70" stroke="var(--text-mute)" stroke-width="1.5"/>
+            <circle cx="100" cy="10" r="6" fill="var(--accent-3)"/>
+            <circle cx="50" cy="40" r="5" fill="var(--accent-4)"/>
+            <circle cx="150" cy="40" r="5" fill="var(--accent-4)"/>
+            <rect x="18" y="65" width="14" height="14" rx="2" fill="var(--accent)"/>
+            <rect x="68" y="65" width="14" height="14" rx="2" fill="var(--accent)"/>
+            <rect x="143" y="65" width="14" height="14" rx="2" fill="var(--accent-2)"/>
+          </svg>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="glass p-7">
+          <div class="font-mono text-xs text-[var(--accent-3)] mb-3">STAGE 2</div>
+          <div class="font-display font-bold text-2xl mb-2">Gradient Boosting</div>
+          <p class="text-sm text-[var(--text-dim)] leading-relaxed">Many weak trees trained sequentially. Each new tree fits the <em>residual errors</em> of the ensemble so far.</p>
+          <svg viewBox="0 0 200 90" class="mt-4 w-full">
+            <g transform="translate(20,30)">
+              <circle cx="0" cy="0" r="8" fill="var(--accent)"/>
+              <text x="-3" y="3" font-size="8" fill="#000" font-weight="bold">M1</text>
+            </g>
+            <line x1="32" y1="30" x2="55" y2="30" stroke="var(--accent-3)" stroke-width="1.5" stroke-dasharray="2 2"/>
+            <g transform="translate(60,30)">
+              <circle cx="0" cy="0" r="8" fill="var(--accent)"/>
+              <text x="-3" y="3" font-size="8" fill="#000" font-weight="bold">M2</text>
+            </g>
+            <line x1="72" y1="30" x2="95" y2="30" stroke="var(--accent-3)" stroke-width="1.5" stroke-dasharray="2 2"/>
+            <g transform="translate(100,30)">
+              <circle cx="0" cy="0" r="8" fill="var(--accent)"/>
+              <text x="-3" y="3" font-size="8" fill="#000" font-weight="bold">M3</text>
+            </g>
+            <line x1="112" y1="30" x2="135" y2="30" stroke="var(--accent-3)" stroke-width="1.5" stroke-dasharray="2 2"/>
+            <g transform="translate(140,30)">
+              <circle cx="0" cy="0" r="8" fill="var(--accent)"/>
+              <text x="-3" y="3" font-size="8" fill="#000" font-weight="bold">Mn</text>
+            </g>
+            <text x="80" y="65" font-size="9" fill="var(--text-dim)" text-anchor="middle" font-family="JetBrains Mono">sum to F(x)</text>
+          </svg>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="glass-strong p-7 relative overflow-hidden">
+          <div class="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-[var(--accent)] opacity-10 blur-2xl"></div>
+          <div class="font-mono text-xs text-[var(--accent)] mb-3">STAGE 3</div>
+          <div class="font-display font-bold text-2xl mb-2">LightGBM</div>
+          <p class="text-sm text-[var(--text-dim)] leading-relaxed">Engineered for speed: histogram-based splits, leaf-wise growth, native categorical support, distributed training.</p>
+          <div class="mt-4 flex gap-1.5 flex-wrap">
+            <span class="pill text-[10px]">Histogram</span>
+            <span class="pill text-[10px]">Leaf-wise</span>
+            <span class="pill text-[10px]">GOSS</span>
+            <span class="pill text-[10px]">EFB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal mt-14 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="glass p-5">
+        <div class="text-[var(--accent)] font-mono text-2xl font-bold">10x</div>
+        <div class="text-xs text-[var(--text-dim)] mt-1">Faster than traditional GBDT on large data</div>
+      </div>
+      <div class="glass p-5">
+        <div class="text-[var(--accent-2)] font-mono text-2xl font-bold">Low</div>
+        <div class="text-xs text-[var(--text-dim)] mt-1">Memory footprint via histograms</div>
+      </div>
+      <div class="glass p-5">
+        <div class="text-[var(--accent-3)] font-mono text-2xl font-bold">High</div>
+        <div class="text-xs text-[var(--text-dim)] mt-1">Accuracy on tabular benchmarks</div>
+      </div>
+      <div class="glass p-5">
+        <div class="text-[var(--accent-4)] font-mono text-2xl font-bold">1B+</div>
+        <div class="text-xs text-[var(--text-dim)] mt-1">Rows trainable without sampling</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="theory" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)]">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">02 · Theory & Mathematical Intuition</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-6 leading-tight">From a single tree to a <span class="text-[var(--accent)]">boosted ensemble</span>.</h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-12">
+        Four conceptual jumps separate a basic decision tree from LightGBM. Each one adds power; together, they create an algorithm that learns from its own mistakes.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-4 mb-14 reveal">
+      <div class="glass p-6 border-t-2 border-t-[var(--accent-4)]">
+        <div class="font-mono text-xs text-[var(--accent-4)] mb-2">STEP 1</div>
+        <div class="font-display font-bold text-xl mb-2">Decision Tree</div>
+        <p class="text-sm text-[var(--text-dim)] leading-relaxed">Partition data by feature thresholds. Each leaf holds a prediction.</p>
+      </div>
+      <div class="glass p-6 border-t-2 border-t-[var(--accent)]">
+        <div class="font-mono text-xs text-[var(--accent)] mb-2">STEP 2</div>
+        <div class="font-display font-bold text-xl mb-2">Ensemble</div>
+        <p class="text-sm text-[var(--text-dim)] leading-relaxed">Combine many trees. Voting or averaging reduces variance.</p>
+      </div>
+      <div class="glass p-6 border-t-2 border-t-[var(--accent-3)]">
+        <div class="font-mono text-xs text-[var(--accent-3)] mb-2">STEP 3</div>
+        <div class="font-display font-bold text-xl mb-2">Boosting</div>
+        <p class="text-sm text-[var(--text-dim)] leading-relaxed">Train sequentially — each tree corrects residual errors of the previous.</p>
+      </div>
+      <div class="glass p-6 border-t-2 border-t-[var(--accent-2)]">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-2">STEP 4</div>
+        <div class="font-display font-bold text-xl mb-2">Gradient Boosting</div>
+        <p class="text-sm text-[var(--text-dim)] leading-relaxed">New trees fit the <em>negative gradient</em> of the loss w.r.t. the ensemble.</p>
+      </div>
+    </div>
+
+    <div class="reveal glass-strong p-7 md:p-10 mb-14">
+      <div class="font-mono text-xs text-[var(--text-dim)] mb-6">SEQUENTIAL BOOSTING — INTUITIVE FLOW</div>
+      <div class="overflow-x-auto">
+        <svg viewBox="0 0 900 180" class="w-full min-w-[700px]">
+          <g transform="translate(10,70)">
+            <rect x="0" y="0" width="50" height="40" rx="6" fill="rgba(0,245,160,0.1)" stroke="var(--accent)"/>
+            <text x="25" y="25" font-size="11" fill="var(--accent)" text-anchor="middle" font-family="JetBrains Mono">Data</text>
+          </g>
+          <g transform="translate(90,60)">
+            <rect x="0" y="0" width="80" height="60" rx="8" fill="rgba(15,19,28,0.8)" stroke="var(--accent-4)"/>
+            <text x="40" y="20" font-size="11" fill="var(--accent-4)" text-anchor="middle" font-family="JetBrains Mono">Model 1</text>
+            <text x="40" y="42" font-size="9" fill="var(--text-dim)" text-anchor="middle">weak learner</text>
+          </g>
+          <g transform="translate(190,70)">
+            <rect x="0" y="0" width="55" height="40" rx="6" fill="rgba(255,107,94,0.1)" stroke="var(--accent-2)"/>
+            <text x="27" y="25" font-size="10" fill="var(--accent-2)" text-anchor="middle" font-family="JetBrains Mono">errors</text>
+          </g>
+          <g transform="translate(270,60)">
+            <rect x="0" y="0" width="80" height="60" rx="8" fill="rgba(15,19,28,0.8)" stroke="var(--accent-4)"/>
+            <text x="40" y="20" font-size="11" fill="var(--accent-4)" text-anchor="middle" font-family="JetBrains Mono">Model 2</text>
+            <text x="40" y="42" font-size="9" fill="var(--text-dim)" text-anchor="middle">fits errors</text>
+          </g>
+          <g transform="translate(370,70)">
+            <rect x="0" y="0" width="55" height="40" rx="6" fill="rgba(255,107,94,0.1)" stroke="var(--accent-2)"/>
+            <text x="27" y="25" font-size="10" fill="var(--accent-2)" text-anchor="middle" font-family="JetBrains Mono">residual</text>
+          </g>
+          <g transform="translate(450,60)">
+            <rect x="0" y="0" width="80" height="60" rx="8" fill="rgba(15,19,28,0.8)" stroke="var(--accent-4)"/>
+            <text x="40" y="20" font-size="11" fill="var(--accent-4)" text-anchor="middle" font-family="JetBrains Mono">Model 3</text>
+            <text x="40" y="42" font-size="9" fill="var(--text-dim)" text-anchor="middle">fits residual</text>
+          </g>
+          <g transform="translate(580,30)">
+            <text x="0" y="100" font-size="22" fill="var(--text)" font-family="JetBrains Mono">sum</text>
+          </g>
+          <g transform="translate(640,55)">
+            <rect x="0" y="0" width="120" height="70" rx="10" fill="rgba(0,245,160,0.08)" stroke="var(--accent)"/>
+            <text x="60" y="28" font-size="12" fill="var(--accent)" text-anchor="middle" font-family="JetBrains Mono" font-weight="bold">Final Model</text>
+            <text x="60" y="50" font-size="10" fill="var(--text-dim)" text-anchor="middle">F(x) = sum of eta_m * h_m(x)</text>
+          </g>
+          <g stroke="var(--text-mute)" stroke-width="1.2" fill="none" stroke-dasharray="3 3">
+            <line x1="60" y1="90" x2="90" y2="90"/>
+            <line x1="170" y1="90" x2="190" y2="90"/>
+            <line x1="245" y1="90" x2="270" y2="90"/>
+            <line x1="350" y1="90" x2="370" y2="90"/>
+            <line x1="425" y1="90" x2="450" y2="90"/>
+            <line x1="530" y1="90" x2="580" y2="90"/>
+            <line x1="600" y1="90" x2="640" y2="90"/>
+          </g>
+          <text x="450" y="170" font-size="10" fill="var(--text-mute)" text-anchor="middle" font-family="JetBrains Mono">Each model focuses on what the previous ones got wrong</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_1fr] gap-6">
+      <div class="glass-strong p-7 md:p-10">
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div>
+            <div class="font-mono text-xs text-[var(--text-dim)] mb-1">GRADIENT BOOSTING ALGORITHM</div>
+            <div class="font-display font-bold text-2xl">Step-by-step derivation</div>
+          </div>
+          <button id="nextStepBtn" class="btn-primary text-sm">Reveal next step</button>
+        </div>
+        <div id="mathSteps" class="space-y-1 font-mono text-sm">
+          <div class="math-line revealed" data-step="0">
+            <div class="step-num mb-1">Step 1 - Initialize</div>
+            <div>F0(x) = argmin_gamma sum_i L(y_i, gamma)</div>
+            <div class="text-[var(--text-dim)] text-xs mt-1">Start with a constant prediction that minimizes total loss.</div>
+          </div>
+          <div class="math-line" data-step="1">
+            <div class="step-num mb-1">Step 2 - Compute pseudo-residuals</div>
+            <div>r_im = -[ dL(y_i, F(x_i)) / dF(x_i) ] at F=F_(m-1)</div>
+            <div class="text-[var(--text-dim)] text-xs mt-1">Negative gradient of the loss w.r.t. current prediction.</div>
+          </div>
+          <div class="math-line" data-step="2">
+            <div class="step-num mb-1">Step 3 - Fit tree to residuals</div>
+            <div>h_m(x) trained on {(x_i, r_im)}</div>
+            <div class="text-[var(--text-dim)] text-xs mt-1">A new regression tree is fit to the residual signal.</div>
+          </div>
+          <div class="math-line" data-step="3">
+            <div class="step-num mb-1">Step 4 - Line search for step size</div>
+            <div>gamma_m = argmin_gamma sum_i L(y_i, F_(m-1)(x_i) + gamma * h_m(x_i))</div>
+            <div class="text-[var(--text-dim)] text-xs mt-1">Optimal weight for the new tree's contribution.</div>
+          </div>
+          <div class="math-line" data-step="4">
+            <div class="step-num mb-1">Step 5 - Update the ensemble</div>
+            <div class="text-[var(--accent)] text-base">F_m(x) = F_(m-1)(x) + eta * gamma_m * h_m(x)</div>
+            <div class="text-[var(--text-dim)] text-xs mt-1">eta is the learning rate — shrinkage for stability.</div>
+          </div>
+          <div class="math-line" data-step="5">
+            <div class="step-num mb-1">Step 6 - Iterate and predict</div>
+            <div>Repeat for m = 1 ... M. Output F_M(x).</div>
+            <div class="text-[var(--text-dim)] text-xs mt-1">The final model is a sum of M weighted weak learners.</div>
+          </div>
+        </div>
+        <div class="mt-6 flex gap-2">
+          <button id="resetStepsBtn" class="btn-ghost text-xs">Reset</button>
+          <button id="revealAllBtn" class="btn-ghost text-xs">Reveal all</button>
+        </div>
+      </div>
+
+      <div class="glass-strong p-7 md:p-10">
+        <div class="font-mono text-xs text-[var(--text-dim)] mb-1">THE KEY UPDATE RULE</div>
+        <div class="font-display font-bold text-2xl mb-6">Anatomy of one boosting step</div>
+
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-xl p-6 mb-6">
+          <div class="text-center text-2xl md:text-3xl font-mono">
+            F_m(x) <span class="text-[var(--text-mute)]">=</span>
+            <span class="text-[var(--accent-4)]">F_(m-1)(x)</span>
+            <span class="text-[var(--text-mute)]">+</span>
+            <span class="text-[var(--accent-3)]">eta</span>
+            <span class="text-[var(--text-mute)]">x</span>
+            <span class="text-[var(--accent-2)]">h_m(x)</span>
+          </div>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex gap-3">
+            <div class="w-3 h-3 rounded-full bg-[var(--accent-4)] mt-1.5 shrink-0"></div>
+            <div>
+              <div class="font-medium"><span class="font-mono text-[var(--accent-4)]">F_(m-1)(x)</span> — previous ensemble</div>
+              <div class="text-[var(--text-dim)] text-xs">Everything the model has learned so far.</div>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <div class="w-3 h-3 rounded-full bg-[var(--accent-3)] mt-1.5 shrink-0"></div>
+            <div>
+              <div class="font-medium"><span class="font-mono text-[var(--accent-3)]">eta</span> — learning rate</div>
+              <div class="text-[var(--text-dim)] text-xs">Small steps prevent overshooting; trades speed for stability.</div>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <div class="w-3 h-3 rounded-full bg-[var(--accent-2)] mt-1.5 shrink-0"></div>
+            <div>
+              <div class="font-medium"><span class="font-mono text-[var(--accent-2)]">h_m(x)</span> — new decision tree</div>
+              <div class="text-[var(--text-dim)] text-xs">Fitted to the gradient of the loss — the "direction of improvement."</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-[var(--border)]">
+          <div class="font-mono text-xs text-[var(--text-dim)] mb-2">LOSS FUNCTIONS (EXAMPLES)</div>
+          <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+            <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-2.5">MSE: 0.5*(y-F)^2</div>
+            <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-2.5">LogLoss: -y log(sigmoid(F))</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="playground" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">Interactive - Drag vertices</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Decision tree <span class="text-[var(--accent)]">playground</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">
+        Drag the <span class="text-[var(--accent)]">green dots</span> to move split thresholds. Live readouts update Gini impurity, sample distribution, and accuracy in real time. This is exactly what a single decision tree optimizes at every node.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1.4fr_1fr] gap-6 reveal">
+      <div class="glass-strong p-4 md:p-6 relative">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div class="font-mono text-xs text-[var(--text-dim)]">FEATURE SPACE - 2D scatter, two classes</div>
+          <div class="flex gap-2 text-xs">
+            <span class="pill"><span class="w-2 h-2 rounded-full bg-[var(--accent)]"></span>Class A</span>
+            <span class="pill"><span class="w-2 h-2 rounded-full bg-[var(--accent-2)]"></span>Class B</span>
+          </div>
+        </div>
+        <svg id="treePlayground" viewBox="0 0 560 380" class="w-full tree-svg"></svg>
+        <div class="text-xs text-[var(--text-mute)] mt-2 font-mono">Drag the glowing handles. Vertical line = split on x1; horizontal line = split on x2.</div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="glass-strong p-5">
+          <div class="font-mono text-xs text-[var(--text-dim)] mb-3">LIVE READOUTS</div>
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="text-[var(--text-dim)]">Split x1 threshold</span>
+                <span class="font-mono text-[var(--accent)]" id="rdX1">2.50</span>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="text-[var(--text-dim)]">Split x2 threshold</span>
+                <span class="font-mono text-[var(--accent)]" id="rdX2">2.50</span>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="text-[var(--text-dim)]">Gini (root)</span>
+                <span class="font-mono text-[var(--accent-3)]" id="rdGini">0.500</span>
+              </div>
+              <div class="h-1 bg-[var(--border)] rounded-full mt-1.5 overflow-hidden">
+                <div id="giniBar" class="h-full bg-[var(--accent-3)] transition-all" style="width:50%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="text-[var(--text-dim)]">Accuracy</span>
+                <span class="font-mono text-[var(--accent)]" id="rdAcc">0.00%</span>
+              </div>
+              <div class="h-1 bg-[var(--border)] rounded-full mt-1.5 overflow-hidden">
+                <div id="accBar" class="h-full bg-[var(--accent)] transition-all" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-strong p-5">
+          <div class="font-mono text-xs text-[var(--text-dim)] mb-3">REGION DISTRIBUTION</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+              <div class="text-[var(--text-mute)] font-mono mb-1">Region top-left</div>
+              <div class="text-sm font-mono"><span class="text-[var(--accent)]" id="rTL_A">0</span> A - <span class="text-[var(--accent-2)]" id="rTL_B">0</span> B</div>
+            </div>
+            <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+              <div class="text-[var(--text-mute)] font-mono mb-1">Region top-right</div>
+              <div class="text-sm font-mono"><span class="text-[var(--accent)]" id="rTR_A">0</span> A - <span class="text-[var(--accent-2)]" id="rTR_B">0</span> B</div>
+            </div>
+            <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+              <div class="text-[var(--text-mute)] font-mono mb-1">Region bottom-left</div>
+              <div class="text-sm font-mono"><span class="text-[var(--accent)]" id="rBL_A">0</span> A - <span class="text-[var(--accent-2)]" id="rBL_B">0</span> B</div>
+            </div>
+            <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+              <div class="text-[var(--text-mute)] font-mono mb-1">Region bottom-right</div>
+              <div class="text-sm font-mono"><span class="text-[var(--accent)]" id="rBR_A">0</span> A - <span class="text-[var(--accent-2)]" id="rBR_B">0</span> B</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-strong p-5">
+          <div class="font-mono text-xs text-[var(--text-dim)] mb-3">EQUIVALENT TREE</div>
+          <pre class="text-xs font-mono leading-relaxed text-[var(--text-dim)] m-0"><span class="text-[var(--accent-4)]">if</span> x1 &lt;= <span class="text-[var(--accent)]" id="tX1">2.50</span>:
+  <span class="text-[var(--accent-4)]">if</span> x2 &lt;= <span class="text-[var(--accent)]" id="tX2">2.50</span>:
+    -&gt; <span class="text-[var(--accent)]">Class A</span>
+  <span class="text-[var(--accent-4)]">else</span>:
+    -&gt; <span class="text-[var(--accent-2)]">Class B</span>
+<span class="text-[var(--accent-4)]">else</span>:
+  -&gt; <span class="text-[var(--accent-2)]">Class B</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="plotlab" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)]">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">Slider-driven plots</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Function <span class="text-[var(--accent)]">plot lab</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">
+        Adjust hyperparameters on the left; watch the boosted prediction F_m(x) evolve. The orange target is the true function. Green shows the model's current approximation across M iterations.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_2fr] gap-6 reveal">
+      <div class="glass-strong p-6 space-y-5">
+        <div class="font-mono text-xs text-[var(--text-dim)]">PARAMETERS</div>
+
+        <div>
+          <div class="flex justify-between mb-2">
+            <label class="text-sm">Iterations (M)</label>
+            <span class="font-mono text-sm text-[var(--accent)]" id="mVal">20</span>
+          </div>
+          <input type="range" min="1" max="100" value="20" class="lgb-slider" id="mSlider">
+        </div>
+
+        <div>
+          <div class="flex justify-between mb-2">
+            <label class="text-sm">Learning rate (eta)</label>
+            <span class="font-mono text-sm text-[var(--accent)]" id="etaVal">0.30</span>
+          </div>
+          <input type="range" min="0.02" max="1" step="0.01" value="0.30" class="lgb-slider" id="etaSlider">
+        </div>
+
+        <div>
+          <div class="flex justify-between mb-2">
+            <label class="text-sm">Max depth</label>
+            <span class="font-mono text-sm text-[var(--accent)]" id="depthVal">3</span>
+          </div>
+          <input type="range" min="1" max="8" value="3" class="lgb-slider" id="depthSlider">
+        </div>
+
+        <div>
+          <div class="flex justify-between mb-2">
+            <label class="text-sm">Noise sigma</label>
+            <span class="font-mono text-sm text-[var(--accent)]" id="noiseVal">0.10</span>
+          </div>
+          <input type="range" min="0" max="0.5" step="0.01" value="0.10" class="lgb-slider" id="noiseSlider">
+        </div>
+
+        <div class="pt-3 border-t border-[var(--border)]">
+          <div class="font-mono text-xs text-[var(--text-dim)] mb-2">TARGET FUNCTION</div>
+          <select id="targetFn" class="w-full bg-[#07090f] border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--accent)] focus:outline-none focus:border-[var(--accent)]">
+            <option value="sine">y = sin(x) * 2</option>
+            <option value="poly">y = 0.1x^2 - 1</option>
+            <option value="step">piecewise step</option>
+            <option value="spike">two bumps</option>
+          </select>
+        </div>
+
+        <div class="pt-3 border-t border-[var(--border)] grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <div class="text-[var(--text-dim)] font-mono">Final MSE</div>
+            <div class="font-mono text-base text-[var(--accent-2)]" id="mseVal">—</div>
+          </div>
+          <div>
+            <div class="text-[var(--text-dim)] font-mono">Improvement</div>
+            <div class="font-mono text-base text-[var(--accent)]" id="improvementVal">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-strong p-6">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div class="font-mono text-xs text-[var(--text-dim)]">F_m(x) - EVOLUTION OF BOOSTED PREDICTION</div>
+          <div class="flex gap-2 text-xs">
+            <span class="pill"><span class="w-2 h-2 rounded-full bg-[var(--accent-2)]"></span>Target</span>
+            <span class="pill"><span class="w-2 h-2 rounded-full bg-[var(--accent)]"></span>Prediction</span>
+            <span class="pill"><span class="w-2 h-2 rounded-full bg-[var(--accent-4)] opacity-60"></span>Data</span>
+          </div>
+        </div>
+        <canvas id="plotCanvas" class="w-full" style="height:380px"></canvas>
+        <div class="mt-3 grid grid-cols-4 gap-2 text-xs text-center font-mono">
+          <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-2">
+            <div class="text-[var(--text-mute)]">m=1</div>
+            <div class="text-[var(--accent-4)]" id="loss1">—</div>
+          </div>
+          <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-2">
+            <div class="text-[var(--text-mute)]">m=M/4</div>
+            <div class="text-[var(--accent-4)]" id="loss2">—</div>
+          </div>
+          <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-2">
+            <div class="text-[var(--text-mute)]">m=M/2</div>
+            <div class="text-[var(--accent-4)]" id="loss3">—</div>
+          </div>
+          <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-2">
+            <div class="text-[var(--text-mute)]">m=M</div>
+            <div class="text-[var(--accent)]" id="loss4">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tasks" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">03 · Tasks & Objectives</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Regression & <span class="text-[var(--accent)]">classification</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">
+        LightGBM handles both continuous targets and categorical labels. The chosen <span class="text-[var(--text)]">objective</span> determines the loss function and the leaf value format.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mb-10 reveal">
+      <div class="glass-strong p-7 border-t-2 border-t-[var(--accent)]">
+        <div class="font-mono text-xs text-[var(--accent)] mb-2">REGRESSION</div>
+        <div class="font-display font-bold text-2xl mb-3">Predict a continuous value</div>
+        <p class="text-sm text-[var(--text-dim)] mb-5">Output is a real number. LightGBM minimizes squared error by default, producing the mean of leaf samples.</p>
+        <div class="space-y-2 mb-5">
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent)]">-</span> House price prediction</div>
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent)]">-</span> Sales / demand forecasting</div>
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent)]">-</span> Energy consumption</div>
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent)]">-</span> Ride time estimation</div>
+        </div>
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3 font-mono text-xs">
+          <div class="text-[var(--text-mute)] mb-1">Loss - MSE</div>
+          <div class="text-[var(--accent-3)]">L = 0.5 * (y - F(x))^2</div>
+        </div>
+      </div>
+
+      <div class="glass-strong p-7 border-t-2 border-t-[var(--accent-2)]">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-2">CLASSIFICATION</div>
+        <div class="font-display font-bold text-2xl mb-3">Predict a class label</div>
+        <p class="text-sm text-[var(--text-dim)] mb-5">Output is a probability (after sigmoid / softmax). LightGBM minimizes log-loss; leaf values are logits.</p>
+        <div class="space-y-2 mb-5">
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent-2)]">-</span> Spam detection (binary)</div>
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent-2)]">-</span> Fraud detection (binary)</div>
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent-2)]">-</span> Disease prediction</div>
+          <div class="flex items-center gap-2 text-sm"><span class="text-[var(--accent-2)]">-</span> Image category (multiclass)</div>
+        </div>
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3 font-mono text-xs">
+          <div class="text-[var(--text-mute)] mb-1">Loss - Binary Log-Loss</div>
+          <div class="text-[var(--accent-3)]">L = -y*log(sigmoid(F)) - (1-y)*log(1-sigmoid(F))</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 reveal">
+      <div class="overflow-x-auto">
+        <table class="lgb-table">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Example</th>
+              <th>Output</th>
+              <th>LightGBM objective</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-medium">Regression</td>
+              <td>House price</td>
+              <td>Continuous value</td>
+              <td class="font-mono text-[var(--accent)]">regression</td>
+            </tr>
+            <tr>
+              <td class="font-medium">Binary classification</td>
+              <td>Spam detection</td>
+              <td>0 or 1 (prob)</td>
+              <td class="font-mono text-[var(--accent)]">binary</td>
+            </tr>
+            <tr>
+              <td class="font-medium">Multiclass classification</td>
+              <td>Image category</td>
+              <td>One of K classes</td>
+              <td class="font-mono text-[var(--accent)]">multiclass</td>
+            </tr>
+            <tr>
+              <td class="font-medium">Ranking</td>
+              <td>Search results</td>
+              <td>Relative order</td>
+              <td class="font-mono text-[var(--accent)]">lambdarank</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 mt-8 reveal">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="flex gap-1.5">
+          <div class="w-3 h-3 rounded-full bg-[var(--accent-2)]"></div>
+          <div class="w-3 h-3 rounded-full bg-[var(--accent-3)]"></div>
+          <div class="w-3 h-3 rounded-full bg-[var(--accent)]"></div>
+        </div>
+        <div class="font-mono text-xs text-[var(--text-dim)] ml-2">train_lightgbm.py</div>
+      </div>
+<pre class="code-block"><code><span class="tk-key">import</span> lightgbm <span class="tk-key">as</span> lgb
+<span class="tk-key">from</span> sklearn.model_selection <span class="tk-key">import</span> train_test_split
+<span class="tk-key">from</span> sklearn.metrics <span class="tk-key">import</span> mean_squared_error
+
+<span class="tk-cmt"># 1. Prepare data</span>
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=<span class="tk-num">0.2</span>)
+
+train_set = lgb.Dataset(X_train, label=y_train)
+val_set   = lgb.Dataset(X_val,   label=y_val,   reference=train_set)
+
+<span class="tk-cmt"># 2. Define hyperparameters</span>
+params = {
+    <span class="tk-str">"objective"</span>: <span class="tk-str">"regression"</span>,
+    <span class="tk-str">"metric"</span>: <span class="tk-str">"rmse"</span>,
+    <span class="tk-str">"learning_rate"</span>: <span class="tk-num">0.05</span>,
+    <span class="tk-str">"num_leaves"</span>: <span class="tk-num">31</span>,
+    <span class="tk-str">"max_depth"</span>: <span class="tk-num">-1</span>,
+    <span class="tk-str">"feature_fraction"</span>: <span class="tk-num">0.9</span>,
+    <span class="tk-str">"lambda_l2"</span>: <span class="tk-num">1.0</span>,
+    <span class="tk-str">"verbose"</span>: <span class="tk-num">-1</span>,
+}
+
+<span class="tk-cmt"># 3. Train with early stopping</span>
+model = lgb.train(
+    params,
+    train_set,
+    num_boost_round=<span class="tk-num">1000</span>,
+    valid_sets=[train_set, val_set],
+    valid_names=[<span class="tk-str">"train"</span>, <span class="tk-str">"val"</span>],
+    callbacks=[lgb.early_stopping(<span class="tk-num">50</span>), lgb.log_evaluation(<span class="tk-num">100</span>)],
+)
+
+<span class="tk-cmt"># 4. Predict & evaluate</span>
+preds = model.predict(X_val)
+rmse = mean_squared_error(y_val, preds, squared=<span class="tk-key">False</span>)
+<span class="tk-fn">print</span>(<span class="tk-str">f"Validation RMSE: {rmse:.4f}"</span>)</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="hyperparams" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)]">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">04 · Hyperparameters</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Tune the <span class="text-[var(--accent)]">bias-variance</span> dial</h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">
+        Most LightGBM hyperparameters move you along a single axis: from underfit to overfit. The marker below sweeps across the bias-variance spectrum.
+      </p>
+    </div>
+
+    <div class="glass-strong p-7 mb-8 reveal">
+      <div class="flex items-center justify-between mb-2 text-sm flex-wrap gap-2">
+        <span class="text-[var(--accent-4)] font-medium">Underfit (high bias)</span>
+        <span class="text-[var(--accent)] font-medium">Balanced</span>
+        <span class="text-[var(--accent-2)] font-medium">Overfit (high variance)</span>
+      </div>
+      <div class="fit-meter" id="fitMeter" style="--pos: 50%"></div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+          <div class="font-mono text-xs text-[var(--text-dim)]">up num_leaves</div>
+          <div class="text-xs text-[var(--accent-2)]">moves right</div>
+        </div>
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+          <div class="font-mono text-xs text-[var(--text-dim)]">up max_depth</div>
+          <div class="text-xs text-[var(--accent-2)]">moves right</div>
+        </div>
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+          <div class="font-mono text-xs text-[var(--text-dim)]">up learning_rate</div>
+          <div class="text-xs text-[var(--accent-2)]">moves right</div>
+        </div>
+        <div class="bg-[#07090f] border border-[var(--border)] rounded-lg p-3">
+          <div class="font-mono text-xs text-[var(--text-dim)]">up min_child_samples</div>
+          <div class="text-xs text-[var(--accent-4)]">moves left</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 reveal">
+      <div class="glass p-5 border-t-2 border-t-[var(--accent-4)]">
+        <div class="font-mono text-xs text-[var(--accent-4)] mb-2">LEARNING</div>
+        <div class="space-y-2 text-sm">
+          <div class="font-mono">learning_rate</div>
+          <div class="font-mono">n_estimators</div>
+        </div>
+        <p class="text-xs text-[var(--text-dim)] mt-3">Small eta + many trees = stable but slow. Large eta + few trees = fast but risky.</p>
+      </div>
+      <div class="glass p-5 border-t-2 border-t-[var(--accent)]">
+        <div class="font-mono text-xs text-[var(--accent)] mb-2">TREE COMPLEXITY</div>
+        <div class="space-y-2 text-sm">
+          <div class="font-mono">num_leaves</div>
+          <div class="font-mono">max_depth</div>
+          <div class="font-mono">min_child_samples</div>
+        </div>
+        <p class="text-xs text-[var(--text-dim)] mt-3">Controls model capacity. More leaves = more capacity but higher overfit risk.</p>
+      </div>
+      <div class="glass p-5 border-t-2 border-t-[var(--accent-3)]">
+        <div class="font-mono text-xs text-[var(--accent-3)] mb-2">SAMPLING</div>
+        <div class="space-y-2 text-sm">
+          <div class="font-mono">feature_fraction</div>
+          <div class="font-mono">bagging_fraction</div>
+          <div class="font-mono">bagging_freq</div>
+        </div>
+        <p class="text-xs text-[var(--text-dim)] mt-3">Random subsampling of features and rows decorrelates trees — like a built-in Random Forest.</p>
+      </div>
+      <div class="glass p-5 border-t-2 border-t-[var(--accent-2)]">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-2">REGULARIZATION</div>
+        <div class="space-y-2 text-sm">
+          <div class="font-mono">lambda_l1</div>
+          <div class="font-mono">lambda_l2</div>
+        </div>
+        <p class="text-xs text-[var(--text-dim)] mt-3">L1 prunes useless splits; L2 shrinks leaf values toward zero.</p>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 reveal">
+      <div class="overflow-x-auto">
+        <table class="lgb-table">
+          <thead>
+            <tr>
+              <th>Hyperparameter</th>
+              <th>Purpose</th>
+              <th>If too high</th>
+              <th>If too low</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">learning_rate</td>
+              <td>Shrinks each tree's contribution</td>
+              <td>Underfit, slow</td>
+              <td>Overfit, unstable</td>
+            </tr>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">n_estimators</td>
+              <td>Number of boosting rounds</td>
+              <td>Overfit, slow</td>
+              <td>Underfit</td>
+            </tr>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">num_leaves</td>
+              <td>Max leaves per tree</td>
+              <td>Overfit</td>
+              <td>Underfit</td>
+            </tr>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">max_depth</td>
+              <td>Tree depth limit</td>
+              <td>Overfit</td>
+              <td>Underfit</td>
+            </tr>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">min_child_samples</td>
+              <td>Min samples per leaf</td>
+              <td>Underfit</td>
+              <td>Overfit</td>
+            </tr>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">feature_fraction</td>
+              <td>Feature subsample per tree</td>
+              <td>Less regularization</td>
+              <td>Underfit</td>
+            </tr>
+            <tr>
+              <td class="font-mono text-[var(--accent)]">lambda_l1 / l2</td>
+              <td>L1 / L2 penalty</td>
+              <td>Underfit</td>
+              <td>Overfit</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="advantages" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">05 · Why LightGBM is fast</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Two ideas behind the <span class="text-[var(--accent)]">speed</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-12">
+        Most GBDT implementations scan every possible split threshold. LightGBM does two things differently — and that's where the magic lives.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6 mb-10">
+      <div class="glass-strong p-7 reveal">
+        <div class="font-mono text-xs text-[var(--accent)] mb-2">IDEA 1 - HISTOGRAM-BASED LEARNING</div>
+        <div class="font-display font-bold text-2xl mb-4">Bin features into histograms</div>
+        <p class="text-sm text-[var(--text-dim)] mb-6 leading-relaxed">
+          Instead of evaluating every distinct value as a split candidate, LightGBM buckets continuous features into <span class="text-[var(--text)]">255 bins</span> by default. Split-finding becomes O(bins) instead of O(values * samples).
+        </p>
+        <svg viewBox="0 0 380 160" class="w-full">
+          <g>
+            <text x="0" y="14" font-size="9" fill="var(--text-dim)" font-family="JetBrains Mono">continuous values (sorted)</text>
+            <g transform="translate(0, 22)">
+              <line x1="0" y1="0" x2="380" y2="0" stroke="var(--text-mute)" stroke-width="1"/>
+              <g font-family="JetBrains Mono" font-size="7" fill="var(--text-mute)">
+                <line x1="20" y1="-3" x2="20" y2="3" stroke="var(--text-mute)"/>
+                <line x1="50" y1="-3" x2="50" y2="3" stroke="var(--text-mute)"/>
+                <line x1="85" y1="-3" x2="85" y2="3" stroke="var(--text-mute)"/>
+                <line x1="110" y1="-3" x2="110" y2="3" stroke="var(--text-mute)"/>
+                <line x1="155" y1="-3" x2="155" y2="3" stroke="var(--text-mute)"/>
+                <line x1="190" y1="-3" x2="190" y2="3" stroke="var(--text-mute)"/>
+                <line x1="220" y1="-3" x2="220" y2="3" stroke="var(--text-mute)"/>
+                <line x1="260" y1="-3" x2="260" y2="3" stroke="var(--text-mute)"/>
+                <line x1="290" y1="-3" x2="290" y2="3" stroke="var(--text-mute)"/>
+                <line x1="330" y1="-3" x2="330" y2="3" stroke="var(--text-mute)"/>
+                <line x1="370" y1="-3" x2="370" y2="3" stroke="var(--text-mute)"/>
+              </g>
+            </g>
+            <g transform="translate(0, 35)">
+              <text x="0" y="14" font-size="9" fill="var(--text-dim)" font-family="JetBrains Mono">histogram bins (255 max)</text>
+              <g transform="translate(0, 22)">
+                <rect x="5"   y="40" width="22" height="35" fill="rgba(0,245,160,0.35)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="32"  y="20" width="22" height="55" fill="rgba(0,245,160,0.35)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="59"  y="10" width="22" height="65" fill="rgba(0,245,160,0.5)"  stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="86"  y="35" width="22" height="40" fill="rgba(0,245,160,0.35)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="113" y="50" width="22" height="25" fill="rgba(0,245,160,0.25)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="140" y="60" width="22" height="15" fill="rgba(0,245,160,0.2)"  stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="167" y="55" width="22" height="20" fill="rgba(0,245,160,0.25)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="194" y="45" width="22" height="30" fill="rgba(0,245,160,0.25)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="221" y="35" width="22" height="40" fill="rgba(0,245,160,0.35)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="248" y="25" width="22" height="50" fill="rgba(0,245,160,0.4)"  stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="275" y="40" width="22" height="35" fill="rgba(0,245,160,0.35)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="302" y="50" width="22" height="25" fill="rgba(0,245,160,0.25)" stroke="var(--accent)" stroke-width="0.8"/>
+                <rect x="329" y="60" width="22" height="15" fill="rgba(0,245,160,0.2)"  stroke="var(--accent)" stroke-width="0.8"/>
+                <line x1="70" y1="0" x2="70" y2="80" stroke="var(--accent-3)" stroke-width="1" stroke-dasharray="2 2"/>
+                <text x="74" y="10" font-size="7" fill="var(--accent-3)" font-family="JetBrains Mono">best split</text>
+              </g>
+            </g>
+          </g>
+        </svg>
+        <div class="grid grid-cols-3 gap-2 mt-4 text-xs">
+          <div class="bg-[#07090f] border border-[var(--border)] rounded p-2 font-mono text-center">
+            <div class="text-[var(--text-mute)]">Pre-sort</div>
+            <div class="text-[var(--accent-2)]">O(N*V)</div>
+          </div>
+          <div class="bg-[#07090f] border border-[var(--border)] rounded p-2 font-mono text-center">
+            <div class="text-[var(--text-mute)]">Histogram</div>
+            <div class="text-[var(--accent)]">O(N*B)</div>
+          </div>
+          <div class="bg-[#07090f] border border-[var(--border)] rounded p-2 font-mono text-center">
+            <div class="text-[var(--text-mute)]">B much less V</div>
+            <div class="text-[var(--accent-3)]">255 bins</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-strong p-7 reveal">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-2">IDEA 2 - LEAF-WISE TREE GROWTH</div>
+        <div class="font-display font-bold text-2xl mb-4">Grow the leaf with highest loss reduction</div>
+        <p class="text-sm text-[var(--text-dim)] mb-6 leading-relaxed">
+          Most GBDT libraries grow level by level (breadth-first). LightGBM grows <span class="text-[var(--text)]">depth-first</span>, always splitting the leaf that reduces loss the most — fewer splits, lower loss.
+        </p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="font-mono text-xs text-[var(--text-dim)] mb-2">Level-wise (XGBoost default)</div>
+            <svg viewBox="0 0 160 130" class="w-full">
+              <g stroke="var(--text-mute)" stroke-width="1" fill="none">
+                <line x1="80" y1="12" x2="40" y2="40"/>
+                <line x1="80" y1="12" x2="120" y2="40"/>
+                <line x1="40" y1="40" x2="20" y2="70"/>
+                <line x1="40" y1="40" x2="60" y2="70"/>
+                <line x1="120" y1="40" x2="100" y2="70"/>
+                <line x1="120" y1="40" x2="140" y2="70"/>
+                <line x1="20" y1="70" x2="10" y2="100"/>
+                <line x1="20" y1="70" x2="30" y2="100"/>
+                <line x1="60" y1="70" x2="50" y2="100"/>
+                <line x1="60" y1="70" x2="70" y2="100"/>
+                <line x1="100" y1="70" x2="90" y2="100"/>
+                <line x1="100" y1="70" x2="110" y2="100"/>
+                <line x1="140" y1="70" x2="130" y2="100"/>
+                <line x1="140" y1="70" x2="150" y2="100"/>
+              </g>
+              <circle cx="80" cy="12" r="6" fill="var(--accent-3)"/>
+              <circle cx="40" cy="40" r="5" fill="var(--accent-4)"/>
+              <circle cx="120" cy="40" r="5" fill="var(--accent-4)"/>
+              <circle cx="20" cy="70" r="4" fill="var(--accent-4)"/>
+              <circle cx="60" cy="70" r="4" fill="var(--accent-4)"/>
+              <circle cx="100" cy="70" r="4" fill="var(--accent-4)"/>
+              <circle cx="140" cy="70" r="4" fill="var(--accent-4)"/>
+              <rect x="6" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="26" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="46" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="66" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="86" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="106" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="126" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="146" y="96" width="8" height="8" fill="var(--accent)"/>
+            </svg>
+          </div>
+          <div>
+            <div class="font-mono text-xs text-[var(--text-dim)] mb-2">Leaf-wise (LightGBM)</div>
+            <svg viewBox="0 0 160 130" class="w-full">
+              <g stroke="var(--text-mute)" stroke-width="1" fill="none">
+                <line x1="80" y1="12" x2="40" y2="40"/>
+                <line x1="80" y1="12" x2="120" y2="40"/>
+                <line x1="40" y1="40" x2="20" y2="70"/>
+                <line x1="40" y1="40" x2="60" y2="70"/>
+                <line x1="20" y1="70" x2="10" y2="100"/>
+                <line x1="20" y1="70" x2="30" y2="100"/>
+                <line x1="10" y1="100" x2="4" y2="120"/>
+                <line x1="10" y1="100" x2="16" y2="120"/>
+              </g>
+              <circle cx="80" cy="12" r="6" fill="var(--accent-3)"/>
+              <circle cx="40" cy="40" r="5" fill="var(--accent-4)"/>
+              <circle cx="120" cy="40" r="5" fill="var(--accent-4)"/>
+              <circle cx="20" cy="70" r="4" fill="var(--accent-4)"/>
+              <circle cx="60" cy="70" r="4" fill="var(--accent-4)"/>
+              <circle cx="10" cy="100" r="3.5" fill="var(--accent-2)"/>
+              <rect x="26" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="56" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="116" y="96" width="8" height="8" fill="var(--accent)"/>
+              <rect x="0" y="116" width="6" height="6" fill="var(--accent)"/>
+              <rect x="14" y="116" width="6" height="6" fill="var(--accent)"/>
+              <text x="80" y="125" font-size="7" fill="var(--accent-2)" text-anchor="middle" font-family="JetBrains Mono">deeper, fewer nodes</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal">
+      <div class="font-mono text-xs text-[var(--text-dim)] mb-3">CORE ADVANTAGES</div>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">SPEED</div><div class="font-medium mb-1">Very fast training</div><div class="text-xs text-[var(--text-dim)]">Histogram + leaf-wise + histogram subtraction trick.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">ACCURACY</div><div class="font-medium mb-1">High predictive power</div><div class="text-xs text-[var(--text-dim)]">Leaf-wise growth reaches lower loss with fewer nodes.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">MEMORY</div><div class="font-medium mb-1">Efficient memory use</div><div class="text-xs text-[var(--text-dim)]">Histograms store uint8 bins instead of float values.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">SCALE</div><div class="font-medium mb-1">Large datasets</div><div class="text-xs text-[var(--text-dim)]">Trains on billions of rows via distributed learning.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">CATEGORICAL</div><div class="font-medium mb-1">Native cat features</div><div class="text-xs text-[var(--text-dim)]">No one-hot encoding required — just pass indices.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">MISSING</div><div class="font-medium mb-1">Handles NaN natively</div><div class="text-xs text-[var(--text-dim)]">Sends missing values to the optimal leaf during training.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">PARALLEL</div><div class="font-medium mb-1">Distributed training</div><div class="text-xs text-[var(--text-dim)]">Feature & data parallelism across machines.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">GPU</div><div class="font-medium mb-1">GPU acceleration</div><div class="text-xs text-[var(--text-dim)]">Optional CUDA builds for even faster training.</div></div>
+        <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-xs mb-1">EARLY STOP</div><div class="font-medium mb-1">Built-in callbacks</div><div class="text-xs text-[var(--text-dim)]">Stops training when validation metric plateaus.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="limitations" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)]">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">06 · Honest limitations</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Where LightGBM <span class="text-[var(--accent-2)]">struggles</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">No tool is universal. Each limitation below has a practical mitigation.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 reveal">
+      <div class="glass p-5">
+        <div class="flex items-start gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-[var(--accent-2)]/10 border border-[var(--accent-2)]/30 flex items-center justify-center shrink-0">
+            <span class="text-[var(--accent-2)] font-mono text-sm">!</span>
+          </div>
+          <div>
+            <div class="font-medium">Overfits on small datasets</div>
+            <div class="text-xs text-[var(--text-dim)] mb-2 mt-1">Leaf-wise growth can produce very deep trees on limited samples.</div>
+            <div class="text-xs"><span class="text-[var(--accent)] font-mono">FIX:</span> reduce num_leaves, raise min_child_samples, use cross-validation.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass p-5">
+        <div class="flex items-start gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-[var(--accent-2)]/10 border border-[var(--accent-2)]/30 flex items-center justify-center shrink-0">
+            <span class="text-[var(--accent-2)] font-mono text-sm">!</span>
+          </div>
+          <div>
+            <div class="font-medium">Sensitive to hyperparameters</div>
+            <div class="text-xs text-[var(--text-dim)] mb-2 mt-1">Defaults aren't always safe; small changes can swing accuracy wildly.</div>
+            <div class="text-xs"><span class="text-[var(--accent)] font-mono">FIX:</span> tune in order — eta & n_estimators first, then leaves, then regularization.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass p-5">
+        <div class="flex items-start gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-[var(--accent-2)]/10 border border-[var(--accent-2)]/30 flex items-center justify-center shrink-0">
+            <span class="text-[var(--accent-2)] font-mono text-sm">!</span>
+          </div>
+          <div>
+            <div class="font-medium">Leaf-wise can make unbalanced trees</div>
+            <div class="text-xs text-[var(--text-dim)] mb-2 mt-1">Can create very deep paths if a single leaf keeps winning the loss-reduction race.</div>
+            <div class="text-xs"><span class="text-[var(--accent)] font-mono">FIX:</span> set max_depth to bound tree shape.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass p-5">
+        <div class="flex items-start gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-[var(--accent-2)]/10 border border-[var(--accent-2)]/30 flex items-center justify-center shrink-0">
+            <span class="text-[var(--accent-2)] font-mono text-sm">!</span>
+          </div>
+          <div>
+            <div class="font-medium">Harder to interpret</div>
+            <div class="text-xs text-[var(--text-dim)] mb-2 mt-1">Hundreds of trees are not visually interpretable like a single tree.</div>
+            <div class="text-xs"><span class="text-[var(--accent)] font-mono">FIX:</span> use SHAP for global & local explanations.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass p-5">
+        <div class="flex items-start gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-[var(--accent-2)]/10 border border-[var(--accent-2)]/30 flex items-center justify-center shrink-0">
+            <span class="text-[var(--accent-2)] font-mono text-sm">!</span>
+          </div>
+          <div>
+            <div class="font-medium">Not ideal for tiny datasets</div>
+            <div class="text-xs text-[var(--text-dim)] mb-2 mt-1">A linear model or simple tree may generalize better with less than 1k rows.</div>
+            <div class="text-xs"><span class="text-[var(--accent)] font-mono">FIX:</span> benchmark against logistic regression / single tree.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass p-5">
+        <div class="flex items-start gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-[var(--accent-2)]/10 border border-[var(--accent-2)]/30 flex items-center justify-center shrink-0">
+            <span class="text-[var(--accent-2)] font-mono text-sm">!</span>
+          </div>
+          <div>
+            <div class="font-medium">Weak on unstructured data</div>
+            <div class="text-xs text-[var(--text-dim)] mb-2 mt-1">Raw images, audio, and text are better served by neural networks.</div>
+            <div class="text-xs"><span class="text-[var(--accent)] font-mono">FIX:</span> use DL for unstructured, LightGBM for tabular.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="usecases" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">07 · Real-world use cases</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Where LightGBM <span class="text-[var(--accent)]">shines</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">Industries that run on tabular data have adopted LightGBM as a default workhorse.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12 reveal">
+      <div class="glass p-5 border-l-2 border-l-[var(--accent)]">
+        <div class="font-mono text-xs text-[var(--accent)] mb-1">FINANCE</div>
+        <div class="font-medium mb-2">Risk & fraud</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1">
+          <li>- Fraud detection (binary)</li>
+          <li>- Credit scoring</li>
+          <li>- Risk prediction</li>
+        </ul>
+      </div>
+      <div class="glass p-5 border-l-2 border-l-[var(--accent-2)]">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-1">HEALTHCARE</div>
+        <div class="font-medium mb-2">Patient outcomes</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1">
+          <li>- Disease prediction</li>
+          <li>- Patient risk classification</li>
+          <li>- Readmission likelihood</li>
+        </ul>
+      </div>
+      <div class="glass p-5 border-l-2 border-l-[var(--accent-3)]">
+        <div class="font-mono text-xs text-[var(--accent-3)] mb-1">E-COMMERCE</div>
+        <div class="font-medium mb-2">Customer signals</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1">
+          <li>- Recommendation systems</li>
+          <li>- Churn prediction</li>
+          <li>- Demand forecasting</li>
+        </ul>
+      </div>
+      <div class="glass p-5 border-l-2 border-l-[var(--accent-4)]">
+        <div class="font-mono text-xs text-[var(--accent-4)] mb-1">MARKETING</div>
+        <div class="font-medium mb-2">Conversion</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1">
+          <li>- Customer segmentation</li>
+          <li>- Conversion prediction</li>
+          <li>- LTV estimation</li>
+        </ul>
+      </div>
+      <div class="glass p-5 border-l-2 border-l-[var(--accent)]">
+        <div class="font-mono text-xs text-[var(--accent)] mb-1">CYBERSECURITY</div>
+        <div class="font-medium mb-2">Anomaly</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1">
+          <li>- Intrusion detection</li>
+          <li>- Malicious activity</li>
+          <li>- Log anomaly scoring</li>
+        </ul>
+      </div>
+      <div class="glass p-5 border-l-2 border-l-[var(--accent-2)]">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-1">INDUSTRY</div>
+        <div class="font-medium mb-2">Operations</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1">
+          <li>- Predictive maintenance</li>
+          <li>- Quality control</li>
+          <li>- Energy load forecasting</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 reveal">
+      <div class="font-mono text-xs text-[var(--text-dim)] mb-4">DECISION FLOWCHART — SHOULD YOU USE LIGHTGBM?</div>
+      <div class="overflow-x-auto">
+      <svg viewBox="0 0 900 220" class="w-full min-w-[700px]">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="var(--text-mute)"/>
+          </marker>
+        </defs>
+        <g font-family="JetBrains Mono" font-size="10" fill="var(--text)">
+          <rect x="10" y="80" width="120" height="50" rx="8" fill="rgba(78,229,255,0.08)" stroke="var(--accent-4)"/>
+          <text x="70" y="100" text-anchor="middle">Data type?</text>
+          <text x="70" y="115" text-anchor="middle" font-size="8" fill="var(--text-dim)">tabular?</text>
+          <line x1="130" y1="105" x2="170" y2="105" stroke="var(--text-mute)" stroke-width="1" marker-end="url(#arrow)"/>
+          <text x="150" y="100" text-anchor="middle" font-size="8" fill="var(--accent)">yes</text>
+          <line x1="70" y1="130" x2="70" y2="180" stroke="var(--text-mute)" stroke-width="1" marker-end="url(#arrow)"/>
+          <text x="80" y="155" font-size="8" fill="var(--accent-2)">no</text>
+          <rect x="20" y="180" width="100" height="30" rx="6" fill="rgba(255,77,109,0.08)" stroke="var(--danger)"/>
+          <text x="70" y="200" text-anchor="middle" font-size="9" fill="var(--accent-2)">Use Deep Learning</text>
+
+          <rect x="170" y="80" width="120" height="50" rx="8" fill="rgba(78,229,255,0.08)" stroke="var(--accent-4)"/>
+          <text x="230" y="100" text-anchor="middle">Dataset size?</text>
+          <text x="230" y="115" text-anchor="middle" font-size="8" fill="var(--text-dim)">more than 10k rows?</text>
+          <line x1="290" y1="105" x2="330" y2="105" stroke="var(--text-mute)" stroke-width="1" marker-end="url(#arrow)"/>
+          <text x="310" y="100" text-anchor="middle" font-size="8" fill="var(--accent)">yes</text>
+
+          <rect x="330" y="80" width="120" height="50" rx="8" fill="rgba(78,229,255,0.08)" stroke="var(--accent-4)"/>
+          <text x="390" y="100" text-anchor="middle">Need speed?</text>
+          <line x1="450" y1="105" x2="490" y2="105" stroke="var(--text-mute)" stroke-width="1" marker-end="url(#arrow)"/>
+          <text x="470" y="100" text-anchor="middle" font-size="8" fill="var(--accent)">yes</text>
+
+          <rect x="490" y="80" width="140" height="50" rx="8" fill="rgba(78,229,255,0.08)" stroke="var(--accent-4)"/>
+          <text x="560" y="100" text-anchor="middle">Interpretability</text>
+          <text x="560" y="115" text-anchor="middle" font-size="8" fill="var(--text-dim)">critical?</text>
+          <line x1="630" y1="105" x2="670" y2="105" stroke="var(--text-mute)" stroke-width="1" marker-end="url(#arrow)"/>
+          <text x="650" y="100" text-anchor="middle" font-size="8" fill="var(--accent-3)">maybe</text>
+
+          <rect x="670" y="80" width="220" height="50" rx="10" fill="rgba(0,245,160,0.12)" stroke="var(--accent)"/>
+          <text x="780" y="100" text-anchor="middle" fill="var(--accent)" font-weight="bold">LightGBM is suitable</text>
+          <text x="780" y="115" text-anchor="middle" font-size="8" fill="var(--text-dim)">consider SHAP for explanations</text>
+
+          <line x1="230" y1="130" x2="230" y2="180" stroke="var(--text-mute)" stroke-width="1" marker-end="url(#arrow)"/>
+          <text x="240" y="155" font-size="8" fill="var(--accent-2)">small</text>
+          <rect x="180" y="180" width="100" height="30" rx="6" fill="rgba(255,200,87,0.08)" stroke="var(--accent-3)"/>
+          <text x="230" y="200" text-anchor="middle" font-size="9" fill="var(--accent-3)">Try Logistic Reg / RF</text>
+        </g>
+      </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compare" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)]">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">08 · Algorithm comparison</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">LightGBM vs the <span class="text-[var(--accent)]">field</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">Each algorithm makes different trade-offs. The table below summarizes the most important axes.</p>
+    </div>
+
+    <div class="glass-strong p-7 mb-8 reveal">
+      <div class="overflow-x-auto">
+        <table class="lgb-table">
+          <thead>
+            <tr>
+              <th>Algorithm</th>
+              <th>Speed</th>
+              <th>Accuracy</th>
+              <th>Categorical</th>
+              <th>Large data</th>
+              <th>Overfit risk</th>
+              <th>Interpretability</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-medium text-[var(--accent)]">LightGBM</td>
+              <td class="text-[var(--accent)]">Very fast</td>
+              <td>High</td>
+              <td>Native</td>
+              <td>Excellent</td>
+              <td>Medium</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td class="font-medium">XGBoost</td>
+              <td>Fast</td>
+              <td>High</td>
+              <td>Limited</td>
+              <td>Good</td>
+              <td>Medium</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td class="font-medium">CatBoost</td>
+              <td>Medium</td>
+              <td>High</td>
+              <td>Excellent</td>
+              <td>Good</td>
+              <td>Low</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td class="font-medium">Random Forest</td>
+              <td>Medium</td>
+              <td>Medium</td>
+              <td>Requires encoding</td>
+              <td>Limited</td>
+              <td>Low</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td class="font-medium">Decision Tree</td>
+              <td>Very fast</td>
+              <td>Low</td>
+              <td>Requires encoding</td>
+              <td>Poor</td>
+              <td>High</td>
+              <td>High</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 reveal">
+      <div class="glass p-6">
+        <div class="font-mono text-xs text-[var(--accent)] mb-2">VS XGBOOST</div>
+        <div class="font-display font-bold text-lg mb-2">Histogram + leaf-wise</div>
+        <p class="text-xs text-[var(--text-dim)] leading-relaxed">LightGBM buckets features into histograms and grows leaf-wise. XGBoost (historically) used pre-sorted splits and level-wise growth. Net result: LightGBM is typically faster, XGBoost can be more conservative on small data.</p>
+      </div>
+      <div class="glass p-6">
+        <div class="font-mono text-xs text-[var(--accent-2)] mb-2">VS CATBOOST</div>
+        <div class="font-display font-bold text-lg mb-2">Categorical handling</div>
+        <p class="text-xs text-[var(--text-dim)] leading-relaxed">CatBoost uses ordered target statistics — robust on high-cardinality categoricals with minimal preprocessing. LightGBM uses native categorical splits, faster but sometimes needs care to avoid target leakage.</p>
+      </div>
+      <div class="glass p-6">
+        <div class="font-mono text-xs text-[var(--accent-3)] mb-2">VS RANDOM FOREST</div>
+        <div class="font-display font-bold text-lg mb-2">Boosting vs bagging</div>
+        <p class="text-xs text-[var(--text-dim)] leading-relaxed">RF trains independent trees on bootstrap samples (low variance, high bias). Boosting trains sequential trees that correct residuals (low bias, higher variance if unregularized).</p>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-8 reveal">
+      <div class="glass-strong p-6">
+        <div class="font-mono text-xs text-[var(--accent-3)] mb-4">BAGGING — RANDOM FOREST</div>
+        <svg viewBox="0 0 400 120" class="w-full">
+          <g>
+            <circle cx="30" cy="60" r="10" fill="var(--accent-4)"/>
+            <text x="30" y="64" text-anchor="middle" font-size="8" fill="#000" font-weight="bold">D</text>
+            <line x1="40" y1="60" x2="80" y2="20" stroke="var(--text-mute)" stroke-width="1"/>
+            <line x1="40" y1="60" x2="80" y2="60" stroke="var(--text-mute)" stroke-width="1"/>
+            <line x1="40" y1="60" x2="80" y2="100" stroke="var(--text-mute)" stroke-width="1"/>
+            <rect x="80" y="14" width="40" height="14" rx="3" fill="var(--accent)" opacity="0.8"/>
+            <text x="100" y="24" text-anchor="middle" font-size="8" font-family="JetBrains Mono">T1</text>
+            <rect x="80" y="54" width="40" height="14" rx="3" fill="var(--accent)" opacity="0.8"/>
+            <text x="100" y="64" text-anchor="middle" font-size="8" font-family="JetBrains Mono">T2</text>
+            <rect x="80" y="94" width="40" height="14" rx="3" fill="var(--accent)" opacity="0.8"/>
+            <text x="100" y="104" text-anchor="middle" font-size="8" font-family="JetBrains Mono">Tn</text>
+            <line x1="120" y1="21" x2="160" y2="55" stroke="var(--accent-3)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="120" y1="61" x2="160" y2="60" stroke="var(--accent-3)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="120" y1="101" x2="160" y2="65" stroke="var(--accent-3)" stroke-width="1" stroke-dasharray="2 2"/>
+            <rect x="160" y="50" width="80" height="20" rx="4" fill="rgba(255,200,87,0.15)" stroke="var(--accent-3)"/>
+            <text x="200" y="64" text-anchor="middle" font-size="9" font-family="JetBrains Mono" fill="var(--accent-3)">Vote / Average</text>
+            <text x="300" y="64" font-size="9" fill="var(--text-dim)" font-family="JetBrains Mono">parallel, independent</text>
+          </g>
+        </svg>
+      </div>
+      <div class="glass-strong p-6">
+        <div class="font-mono text-xs text-[var(--accent)] mb-4">BOOSTING — LIGHTGBM</div>
+        <svg viewBox="0 0 400 120" class="w-full">
+          <g>
+            <circle cx="30" cy="60" r="10" fill="var(--accent-4)"/>
+            <text x="30" y="64" text-anchor="middle" font-size="8" fill="#000" font-weight="bold">D</text>
+            <rect x="50" y="53" width="40" height="14" rx="3" fill="var(--accent)"/>
+            <text x="70" y="63" text-anchor="middle" font-size="8" font-family="JetBrains Mono">T1</text>
+            <line x1="90" y1="60" x2="110" y2="60" stroke="var(--accent-2)" stroke-width="1"/>
+            <text x="100" y="55" text-anchor="middle" font-size="7" fill="var(--accent-2)">err</text>
+            <rect x="110" y="53" width="40" height="14" rx="3" fill="var(--accent)"/>
+            <text x="130" y="63" text-anchor="middle" font-size="8" font-family="JetBrains Mono">T2</text>
+            <line x1="150" y1="60" x2="170" y2="60" stroke="var(--accent-2)" stroke-width="1"/>
+            <text x="160" y="55" text-anchor="middle" font-size="7" fill="var(--accent-2)">err</text>
+            <rect x="170" y="53" width="40" height="14" rx="3" fill="var(--accent)"/>
+            <text x="190" y="63" text-anchor="middle" font-size="8" font-family="JetBrains Mono">T3</text>
+            <line x1="210" y1="60" x2="230" y2="60" stroke="var(--accent-2)" stroke-width="1"/>
+            <text x="220" y="55" text-anchor="middle" font-size="7" fill="var(--accent-2)">err</text>
+            <rect x="230" y="53" width="40" height="14" rx="3" fill="var(--accent)"/>
+            <text x="250" y="63" text-anchor="middle" font-size="8" font-family="JetBrains Mono">Tn</text>
+            <line x1="270" y1="60" x2="290" y2="60" stroke="var(--accent-3)" stroke-width="1" stroke-dasharray="2 2"/>
+            <rect x="290" y="50" width="80" height="20" rx="4" fill="rgba(0,245,160,0.12)" stroke="var(--accent)"/>
+            <text x="330" y="64" text-anchor="middle" font-size="9" font-family="JetBrains Mono" fill="var(--accent)">sum weighted</text>
+            <text x="200" y="100" font-size="9" fill="var(--text-dim)" font-family="JetBrains Mono" text-anchor="middle">sequential, error-correcting</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">09 · Feature importance</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Which features <span class="text-[var(--accent)]">matter</span>?</h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">LightGBM exposes several importance measures — and SHAP adds a deeper, theoretically grounded view.</p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1.4fr_1fr] gap-6 reveal">
+      <div class="glass-strong p-7">
+        <div class="font-mono text-xs text-[var(--text-dim)] mb-4">EXAMPLE — PREDICTING HOUSE PRICES</div>
+        <svg id="importanceChart" viewBox="0 0 500 280" class="w-full"></svg>
+        <div class="mt-4 flex gap-2 text-xs">
+          <button class="btn-ghost text-xs" data-imp="split">Split importance</button>
+          <button class="btn-ghost text-xs" data-imp="gain">Gain importance</button>
+          <button class="btn-ghost text-xs" data-imp="shap">SHAP values</button>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="glass p-5">
+          <div class="font-mono text-xs text-[var(--accent)] mb-1">SPLIT IMPORTANCE</div>
+          <div class="text-sm text-[var(--text-dim)]">How often a feature is chosen as the split point across all trees. Fast to compute but biased toward high-cardinality features.</div>
+        </div>
+        <div class="glass p-5">
+          <div class="font-mono text-xs text-[var(--accent-2)] mb-1">GAIN IMPORTANCE</div>
+          <div class="text-sm text-[var(--text-dim)]">Total loss reduction attributed to splits on a feature. More meaningful than raw count, but can be unstable across runs.</div>
+        </div>
+        <div class="glass p-5">
+          <div class="font-mono text-xs text-[var(--accent-3)] mb-1">SHAP VALUES</div>
+          <div class="text-sm text-[var(--text-dim)]">Shapley values from game theory — fairly attributes the prediction to each feature. Provides both global and per-sample explanations.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 mt-6 reveal">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="flex gap-1.5">
+          <div class="w-3 h-3 rounded-full bg-[var(--accent-2)]"></div>
+          <div class="w-3 h-3 rounded-full bg-[var(--accent-3)]"></div>
+          <div class="w-3 h-3 rounded-full bg-[var(--accent)]"></div>
+        </div>
+        <div class="font-mono text-xs text-[var(--text-dim)] ml-2">feature_importance.py</div>
+      </div>
+<pre class="code-block"><code><span class="tk-cmt"># Gain-based importance (built-in)</span>
+importance = model.feature_importance(importance_type=<span class="tk-str">"gain"</span>)
+<span class="tk-key">for</span> name, imp <span class="tk-key">in</span> <span class="tk-fn">zip</span>(feature_names, importance):
+    <span class="tk-fn">print</span>(<span class="tk-str">f"{name:20s} {imp:.2f}"</span>)
+
+<span class="tk-cmt"># SHAP values — deeper explanation</span>
+<span class="tk-key">import</span> shap
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X_val)
+
+shap.summary_plot(shap_values, X_val, feature_names=feature_names)
+shap.force_plot(explainer.expected_value, shap_values[<span class="tk-num">0</span>], X_val.iloc[<span class="tk-num">0</span>])</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="practical" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)]">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">10 · Practical tips</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">From <span class="text-[var(--accent)]">data to model</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">A pragmatic, ordered workflow that minimizes wasted effort and reduces overfitting risk.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 mb-8 reveal">
+      <div class="glass p-5">
+        <div class="font-mono text-xs text-[var(--accent-4)] mb-2">DATA PREPARATION</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1.5">
+          <li>- Validate data types & ranges</li>
+          <li>- Check missing patterns</li>
+          <li>- Encode categoricals with category dtype</li>
+          <li>- Avoid leakage from future-into-past</li>
+          <li>- Use stratified / time-based splits</li>
+        </ul>
+      </div>
+      <div class="glass p-5">
+        <div class="font-mono text-xs text-[var(--accent)] mb-2">TRAINING</div>
+        <ul class="text-xs text-[var(--text-dim)] space-y-1.5">
+          <li>- Start with sensible defaults</li>
+          <li>- Always use cross-validation</li>
+          <li>- Enable early stopping</li>
+          <li>- Track multiple metrics</li>
+          <li>- Re-train on train+val for production</li>
+        </ul>
+      </div>
+      <div class="glass p-5">
+        <div class="font-mono text-xs text-[var(--accent-3)] mb-2">TUNING ORDER</div>
+        <ol class="text-xs text-[var(--text-dim)] space-y-1.5 list-decimal list-inside">
+          <li>learning_rate x n_estimators</li>
+          <li>num_leaves</li>
+          <li>max_depth</li>
+          <li>min_child_samples</li>
+          <li>feature / bagging fractions</li>
+          <li>lambda_l1, lambda_l2</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 reveal">
+      <div class="flex items-center gap-2 mb-4">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 1 L18 5 V11 C18 15 14 18 10 19 C6 18 2 15 2 11 V5 Z" stroke="var(--accent)" stroke-width="1.5" fill="rgba(0,245,160,0.05)"/>
+          <path d="M7 10 L9 12 L13 7" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="font-display font-bold text-xl">Anti-overfit checklist</div>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Reduce <span class="font-mono text-[var(--accent-3)]">num_leaves</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Limit <span class="font-mono text-[var(--accent-3)]">max_depth</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Increase <span class="font-mono text-[var(--accent-3)]">min_child_samples</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Apply <span class="font-mono text-[var(--accent-3)]">lambda_l1 / l2</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Lower <span class="font-mono text-[var(--accent-3)]">feature_fraction</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Lower <span class="font-mono text-[var(--accent-3)]">bagging_fraction</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Enable <span class="font-mono text-[var(--accent-3)]">early stopping</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Reduce <span class="font-mono text-[var(--accent-3)]">learning_rate</span></label>
+        <label class="flex items-center gap-2 cursor-pointer hover:text-[var(--accent)] transition"><input type="checkbox" class="accent-[var(--accent)]"> Use <span class="font-mono text-[var(--accent-3)]">k-fold CV</span></label>
+      </div>
+    </div>
+
+    <div class="glass-strong p-7 mt-6 reveal">
+      <div class="font-mono text-xs text-[var(--text-dim)] mb-4">RECOMMENDED WORKFLOW</div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="px-4 py-2 rounded-lg bg-[rgba(78,229,255,0.1)] border border-[var(--accent-4)] text-sm font-mono">Data</div>
+        <span class="text-[var(--text-mute)]">-</span>
+        <div class="px-4 py-2 rounded-lg bg-[rgba(78,229,255,0.1)] border border-[var(--accent-4)] text-sm font-mono">Train/Test Split</div>
+        <span class="text-[var(--text-mute)]">-</span>
+        <div class="px-4 py-2 rounded-lg bg-[rgba(0,245,160,0.1)] border border-[var(--accent)] text-sm font-mono">LightGBM Model</div>
+        <span class="text-[var(--text-mute)]">-</span>
+        <div class="px-4 py-2 rounded-lg bg-[rgba(0,245,160,0.1)] border border-[var(--accent)] text-sm font-mono">Training (early stop)</div>
+        <span class="text-[var(--text-mute)]">-</span>
+        <div class="px-4 py-2 rounded-lg bg-[rgba(255,200,87,0.1)] border border-[var(--accent-3)] text-sm font-mono">Evaluation</div>
+        <span class="text-[var(--text-mute)]">-</span>
+        <div class="px-4 py-2 rounded-lg bg-[rgba(255,200,87,0.1)] border border-[var(--accent-3)] text-sm font-mono">Feature Importance</div>
+        <span class="text-[var(--text-mute)]">-</span>
+        <div class="px-4 py-2 rounded-lg bg-[rgba(255,107,94,0.1)] border border-[var(--accent-2)] text-sm font-mono">Hyperparameter Tuning</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quiz" class="relative py-24 px-6 lg:px-10">
+  <div class="max-w-5xl mx-auto">
+    <div class="reveal">
+      <div class="section-tag mb-5">Color-pulse feedback</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl mb-4 leading-tight">Test your <span class="text-[var(--accent)]">intuition</span></h2>
+      <p class="text-lg text-[var(--text-dim)] max-w-3xl leading-relaxed mb-10">Five quick questions. Correct answers pulse green; wrong ones flash red. Track your score below.</p>
+    </div>
+
+    <div id="quizContainer" class="space-y-6 reveal"></div>
+
+    <div class="glass-strong p-6 mt-6 flex items-center justify-between flex-wrap gap-3 reveal">
+      <div>
+        <div class="font-mono text-xs text-[var(--text-dim)] mb-1">SCORE</div>
+        <div class="font-display font-bold text-3xl"><span id="quizScore" class="text-[var(--accent)]">0</span><span class="text-[var(--text-mute)] text-xl"> / 5</span></div>
+      </div>
+      <button id="quizReset" class="btn-ghost text-sm">Reset quiz</button>
+    </div>
+  </div>
+</section>
+
+<section id="summary" class="relative py-24 px-6 lg:px-10 bg-[var(--bg-elev)] overflow-hidden">
+  <div class="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-[var(--accent)] opacity-[0.07] blur-3xl"></div>
+  <div class="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-[var(--accent-2)] opacity-[0.05] blur-3xl"></div>
+
+  <div class="max-w-5xl mx-auto relative">
+    <div class="reveal text-center mb-12">
+      <div class="section-tag mb-5 mx-auto">Key takeaways</div>
+      <h2 class="font-display font-extrabold text-5xl md:text-7xl leading-tight">LightGBM, <span class="text-[var(--accent)]">decoded</span>.</h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 mb-12 reveal">
+      <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-2xl mb-1">01</div><div class="text-sm">A powerful gradient boosting algorithm using decision trees as weak learners.</div></div>
+      <div class="glass p-5"><div class="text-[var(--accent-2)] font-mono text-2xl mb-1">02</div><div class="text-sm">New trees learn from the gradient of the loss — the residuals of the ensemble.</div></div>
+      <div class="glass p-5"><div class="text-[var(--accent-3)] font-mono text-2xl mb-1">03</div><div class="text-sm">Histogram-based splits make training dramatically faster and lighter.</div></div>
+      <div class="glass p-5"><div class="text-[var(--accent-4)] font-mono text-2xl mb-1">04</div><div class="text-sm">Leaf-wise growth lowers loss faster — but can overfit without limits.</div></div>
+      <div class="glass p-5"><div class="text-[var(--accent)] font-mono text-2xl mb-1">05</div><div class="text-sm">Excels on structured / tabular data — not the right tool for unstructured inputs.</div></div>
+      <div class="glass p-5"><div class="text-[var(--accent-2)] font-mono text-2xl mb-1">06</div><div class="text-sm">Careful tuning, early stopping, and cross-validation are non-negotiable.</div></div>
+    </div>
+
+    <div class="reveal glass-strong p-8 md:p-10 text-center">
+      <div class="font-mono text-xs text-[var(--text-dim)] mb-3">FINAL THOUGHT</div>
+      <p class="font-display font-bold text-2xl md:text-3xl leading-tight">
+        <span class="text-[var(--accent)]">LightGBM</span> combines speed, scalability, and predictive power — making it one of the most effective algorithms for tabular Machine Learning problems.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer class="border-t border-[var(--border)] py-10 px-6 lg:px-10 relative z-10">
+  <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-2.5">
+      <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+        <rect x="2" y="2" width="24" height="24" rx="7" stroke="url(#lg1)" stroke-width="1.5"/>
+        <path d="M8 18 L12 10 L16 14 L20 8" stroke="#00f5a0" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <circle cx="8" cy="18" r="2" fill="#00f5a0"/>
+        <circle cx="20" cy="8" r="2" fill="#ff6b5e"/>
+      </svg>
+      <span class="font-display font-bold">LightGBM.Lab</span>
+      <span class="text-xs text-[var(--text-mute)] ml-2">interactive concept site</span>
+    </div>
+    <div class="text-xs text-[var(--text-mute)] font-mono">
+      Built for learners - Open the playground and explore.
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ========== HERO MORPHING BLOB ========== */
+(() => {
+  const canvas = document.getElementById('hero-canvas');
+  if (!canvas) return;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 3.6;
+
+  scene.add(new THREE.AmbientLight(0x404060, 0.4));
+  const keyLight = new THREE.PointLight(0x00f5a0, 2.5, 10);
+  keyLight.position.set(2, 2, 2);
+  scene.add(keyLight);
+  const fillLight = new THREE.PointLight(0xff6b5e, 1.8, 10);
+  fillLight.position.set(-2, -1, 1);
+  scene.add(fillLight);
+
+  const vertexShader = `
+    uniform float uTime;
+    varying float vDisplacement;
+    varying vec3 vNormal;
+
+    vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+    float snoise(vec3 v){
+      const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+      vec3 i  = floor(v + dot(v, C.yyy));
+      vec3 x0 = v - i + dot(i, C.xxx);
+      vec3 g = step(x0.yzx, x0.xyz);
+      vec3 l = 1.0 - g;
+      vec3 i1 = min(g.xyz, l.zxy);
+      vec3 i2 = max(g.xyz, l.zxy);
+      vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+      vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+      vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+      i = mod(i, 289.0);
+      vec4 p = permute(permute(permute(
+        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+      float n_ = 1.0/7.0;
+      vec3 ns = n_ * D.wyz - D.xzx;
+      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+      vec4 x_ = floor(j * ns.z);
+      vec4 y_ = floor(j - 7.0 * x_);
+      vec4 x = x_ * ns.x + ns.yyyy;
+      vec4 y = y_ * ns.x + ns.yyyy;
+      vec4 h = 1.0 - abs(x) - abs(y);
+      vec4 b0 = vec4(x.xy, y.xy);
+      vec4 b1 = vec4(x.zw, y.zw);
+      vec4 s0 = floor(b0)*2.0 + 1.0;
+      vec4 s1 = floor(b1)*2.0 + 1.0;
+      vec4 sh = -step(h, vec4(0.0));
+      vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+      vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+      vec3 p0 = vec3(a0.xy, h.x);
+      vec3 p1 = vec3(a0.zw, h.y);
+      vec3 p2 = vec3(a1.xy, h.z);
+      vec3 p3 = vec3(a1.zw, h.w);
+      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+      vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+      m = m * m;
+      return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+    }
+
+    void main() {
+      vec3 pos = position;
+      float n1 = snoise(pos * 1.4 + vec3(uTime * 0.25));
+      float n2 = snoise(pos * 2.8 + vec3(uTime * 0.45, 0.0, 0.0));
+      float n3 = snoise(pos * 0.6 + vec3(0.0, uTime * 0.15, 0.0));
+      float displacement = n1 * 0.32 + n2 * 0.12 + n3 * 0.08;
+      pos += normal * displacement;
+      vDisplacement = displacement;
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `;
+
+  const fragmentShader = `
+    uniform float uTime;
+    varying float vDisplacement;
+    varying vec3 vNormal;
+
+    void main() {
+      vec3 color1 = vec3(0.0, 0.96, 0.62);
+      vec3 color2 = vec3(1.0, 0.42, 0.37);
+      vec3 color3 = vec3(1.0, 0.78, 0.34);
+      vec3 color4 = vec3(0.31, 0.9, 1.0);
+
+      float t = vDisplacement * 2.0 + 0.5;
+      vec3 color = mix(color1, color2, smoothstep(0.0, 1.0, t));
+      color = mix(color, color3, smoothstep(0.55, 1.0, t));
+      color = mix(color, color4, smoothstep(0.8, 1.0, vDisplacement + 0.5) * 0.3);
+
+      vec3 viewDir = vec3(0.0, 0.0, 1.0);
+      float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.2);
+      color += fresnel * 0.55;
+
+      float pulse = 0.5 + 0.5 * sin(uTime * 0.8);
+      color *= 0.85 + 0.15 * pulse;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  const geometry = new THREE.IcosahedronGeometry(1.25, 48);
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms: { uTime: { value: 0 } },
+    transparent: false,
+  });
+
+  const blob = new THREE.Mesh(geometry, material);
+  scene.add(blob);
+
+  const ghostMat = new THREE.MeshBasicMaterial({
+    color: 0x00f5a0,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.06
+  });
+  const ghost = new THREE.Mesh(new THREE.IcosahedronGeometry(1.7, 2), ghostMat);
+  scene.add(ghost);
+
+  const pGeo = new THREE.BufferGeometry();
+  const pCount = 180;
+  const pPos = new Float32Array(pCount * 3);
+  for (let i = 0; i < pCount; i++) {
+    const r = 2.2 + Math.random() * 1.4;
+    const t = Math.random() * Math.PI * 2;
+    const p = Math.acos(2 * Math.random() - 1);
+    pPos[i*3]   = r * Math.sin(p) * Math.cos(t);
+    pPos[i*3+1] = r * Math.sin(p) * Math.sin(t);
+    pPos[i*3+2] = r * Math.cos(p);
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  const pMat = new THREE.PointsMaterial({
+    color: 0x00f5a0, size: 0.025, transparent: true,
+    opacity: 0.6, blending: THREE.AdditiveBlending
+  });
+  const particles = new THREE.Points(pGeo, pMat);
+  scene.add(particles);
+
+  let targetRotX = 0, targetRotY = 0;
+  window.addEventListener('mousemove', (e) => {
+    const mx = (e.clientX / window.innerWidth) * 2 - 1;
+    const my = (e.clientY / window.innerHeight) * 2 - 1;
+    targetRotY = mx * 0.4;
+    targetRotX = my * 0.3;
+  });
+
+  function resize() {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (canvas.width !== w || canvas.height !== h) {
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(1, h);
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  const clock = new THREE.Clock();
+  function animate() {
+    const t = clock.getElapsedTime();
+    material.uniforms.uTime.value = t;
+    blob.rotation.y += 0.0025;
+    blob.rotation.x += 0.0008;
+    blob.rotation.y += (targetRotY - blob.rotation.y) * 0.02;
+    blob.rotation.x += (targetRotX - blob.rotation.x) * 0.02;
+    ghost.rotation.y -= 0.001;
+    ghost.rotation.x -= 0.0005;
+    particles.rotation.y += 0.0008;
+    particles.rotation.x += 0.0003;
+    resize();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+  animate();
+  resize();
+  window.addEventListener('resize', resize);
+})();
+
+/* ========== SCROLL PROGRESS & NAV ========== */
+(() => {
+  const progress = document.getElementById('scrollProgress');
+  const navLinks = document.querySelectorAll('.nav-link');
+  const sections = ['intro','theory','playground','plotlab','hyperparams','compare','quiz'];
+
+  function onScroll() {
+    const total = document.body.scrollHeight - window.innerHeight;
+    const p = Math.min(100, (window.scrollY / Math.max(1, total)) * 100);
+    progress.style.width = p + '%';
+
+    let active = '';
+    for (const id of sections) {
+      const el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top < 120) active = id;
+    }
+    navLinks.forEach(l => {
+      const href = l.getAttribute('href').replace('#','');
+      l.classList.toggle('active', href === active);
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) e.target.classList.add('visible');
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+})();
+
+/* ========== MATH REVEAL ========== */
+(() => {
+  const steps = document.querySelectorAll('#mathSteps .math-line');
+  const nextBtn = document.getElementById('nextStepBtn');
+  const resetBtn = document.getElementById('resetStepsBtn');
+  const revealAllBtn = document.getElementById('revealAllBtn');
+  let current = 0;
+
+  function update() {
+    steps.forEach((s, i) => s.classList.toggle('revealed', i <= current));
+    nextBtn.textContent = current >= steps.length - 1 ? 'Restart' : 'Reveal next step';
+  }
+  nextBtn.addEventListener('click', () => {
+    if (current >= steps.length - 1) current = 0;
+    else current++;
+    update();
+  });
+  resetBtn.addEventListener('click', () => { current = 0; update(); });
+  revealAllBtn.addEventListener('click', () => { current = steps.length - 1; update(); });
+  update();
+})();
+
+/* ========== TREE PLAYGROUND ========== */
+(() => {
+  const svg = document.getElementById('treePlayground');
+  if (!svg) return;
+
+  const W = 560, H = 380, pad = 30;
+
+  let seed = 42;
+  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+
+  const data = [];
+  for (let i = 0; i < 30; i++) data.push({ x: 1.5 + rand() * 1.8, y: 1.5 + rand() * 1.8, c: 'A' });
+  for (let i = 0; i < 30; i++) data.push({ x: 3.5 + rand() * 1.8, y: 3.5 + rand() * 1.8, c: 'B' });
+  for (let i = 0; i < 12; i++) data.push({ x: 2 + rand() * 3, y: 2 + rand() * 3, c: rand() > 0.5 ? 'A' : 'B' });
+
+  let x1Thr = 2.7;
+  let x2Thr = 2.7;
+
+  const xToPx = (x) => pad + (x / 6) * (W - 2 * pad);
+  const yToPx = (y) => H - pad - (y / 6) * (H - 2 * pad);
+  const pxToX = (px) => ((px - pad) / (W - 2 * pad)) * 6;
+  const pxToY = (py) => ((H - pad - py) / (H - 2 * pad)) * 6;
+
+  function gini(rows) {
+    if (rows.length === 0) return 0;
+    const a = rows.filter(r => r.c === 'A').length / rows.length;
+    return 1 - (a*a + (1-a)*(1-a));
+  }
+
+  function render() {
+    svg.innerHTML = '';
+    const SVGNS = 'http://www.w3.org/2000/svg';
+
+    // grid
+    for (let i = 0; i <= 6; i++) {
+      const lx = xToPx(i), ly = yToPx(i);
+      const lnx = document.createElementNS(SVGNS,'line');
+      lnx.setAttribute('x1', lx); lnx.setAttribute('y1', yToPx(0));
+      lnx.setAttribute('x2', lx); lnx.setAttribute('y2', yToPx(6));
+      lnx.setAttribute('stroke', 'rgba(255,255,255,0.05)');
+      lnx.setAttribute('stroke-width', '1');
+      svg.appendChild(lnx);
+      const lny = document.createElementNS(SVGNS,'line');
+      lny.setAttribute('x1', xToPx(0)); lny.setAttribute('y1', ly);
+      lny.setAttribute('x2', xToPx(6)); lny.setAttribute('y2', ly);
+      lny.setAttribute('stroke', 'rgba(255,255,255,0.05)');
+      lny.setAttribute('stroke-width', '1');
+      svg.appendChild(lny);
+    }
+
+    const xLabel = document.createElementNS(SVGNS,'text');
+    xLabel.setAttribute('x', W - pad); xLabel.setAttribute('y', H - 8);
+    xLabel.setAttribute('fill', '#5a6478');
+    xLabel.setAttribute('font-size', '10');
+    xLabel.setAttribute('font-family', 'JetBrains Mono');
+    xLabel.setAttribute('text-anchor', 'end');
+    xLabel.textContent = 'x1 ->';
+    svg.appendChild(xLabel);
+
+    const yLabel = document.createElementNS(SVGNS,'text');
+    yLabel.setAttribute('x', 8); yLabel.setAttribute('y', pad);
+    yLabel.setAttribute('fill', '#5a6478');
+    yLabel.setAttribute('font-size', '10');
+    yLabel.setAttribute('font-family', 'JetBrains Mono');
+    yLabel.textContent = '^ x2';
+    svg.appendChild(yLabel);
+
+    const TL = [], TR = [], BL = [], BR = [];
+    data.forEach(d => {
+      if (d.x <= x1Thr && d.y <= x2Thr) TL.push(d);
+      else if (d.x > x1Thr && d.y <= x2Thr) TR.push(d);
+      else if (d.x <= x1Thr && d.y > x2Thr) BL.push(d);
+      else BR.push(d);
+    });
+
+    function regionFill(rows) {
+      if (rows.length === 0) return 'transparent';
+      const ratio = rows.filter(r => r.c === 'A').length / rows.length;
+      if (ratio > 0.6) return 'rgba(0,245,160,0.06)';
+      if (ratio < 0.4) return 'rgba(255,107,94,0.06)';
+      return 'rgba(255,200,87,0.06)';
+    }
+
+    const x1Px = xToPx(x1Thr);
+    const x2Px = yToPx(x2Thr);
+
+    const regions = [
+      { x: pad, y: x2Px, w: x1Px - pad, h: H - pad - x2Px, rows: BL },
+      { x: x1Px, y: x2Px, w: W - pad - x1Px, h: H - pad - x2Px, rows: BR },
+      { x: pad, y: pad, w: x1Px - pad, h: x2Px - pad, rows: TL },
+      { x: x1Px, y: pad, w: W - pad - x1Px, h: x2Px - pad, rows: TR }
+    ];
+    regions.forEach(r => {
+      const rect = document.createElementNS(SVGNS,'rect');
+      rect.setAttribute('x', r.x); rect.setAttribute('y', r.y);
+      rect.setAttribute('width', Math.max(0, r.w)); rect.setAttribute('height', Math.max(0, r.h));
+      rect.setAttribute('fill', regionFill(r.rows));
+      svg.appendChild(rect);
+    });
+
+    const vLine = document.createElementNS(SVGNS,'line');
+    vLine.setAttribute('x1', x1Px); vLine.setAttribute('y1', pad);
+    vLine.setAttribute('x2', x1Px); vLine.setAttribute('y2', H - pad);
+    vLine.setAttribute('stroke', '#00f5a0');
+    vLine.setAttribute('stroke-width', '2');
+    vLine.setAttribute('stroke-dasharray', '5 4');
+    svg.appendChild(vLine);
+
+    const hLine = document.createElementNS(SVGNS,'line');
+    hLine.setAttribute('x1', pad); hLine.setAttribute('y1', x2Px);
+    hLine.setAttribute('x2', W - pad); hLine.setAttribute('y2', x2Px);
+    hLine.setAttribute('stroke', '#00f5a0');
+    hLine.setAttribute('stroke-width', '2');
+    hLine.setAttribute('stroke-dasharray', '5 4');
+    svg.appendChild(hLine);
+
+    data.forEach(d => {
+      const c = document.createElementNS(SVGNS,'circle');
+      c.setAttribute('cx', xToPx(d.x));
+      c.setAttribute('cy', yToPx(d.y));
+      c.setAttribute('r', '4');
+      c.setAttribute('fill', d.c === 'A' ? '#00f5a0' : '#ff6b5e');
+      c.setAttribute('opacity', '0.85');
+      svg.appendChild(c);
+    });
+
+    const h1 = document.createElementNS(SVGNS,'g');
+    h1.setAttribute('class', 'drag-handle');
+    h1.setAttribute('data-axis', 'x');
+    const h1c = document.createElementNS(SVGNS,'circle');
+    h1c.setAttribute('cx', x1Px); h1c.setAttribute('cy', H/2);
+    h1c.setAttribute('r', '7');
+    h1c.setAttribute('class', 'handle-circle');
+    h1c.setAttribute('fill', '#00f5a0');
+    h1c.setAttribute('stroke', '#06070d');
+    h1c.setAttribute('stroke-width', '2');
+    h1c.setAttribute('filter', 'drop-shadow(0 0 8px #00f5a0)');
+    const h1l = document.createElementNS(SVGNS,'text');
+    h1l.setAttribute('x', x1Px); h1l.setAttribute('y', H/2 - 14);
+    h1l.setAttribute('fill', '#00f5a0');
+    h1l.setAttribute('font-size', '10');
+    h1l.setAttribute('font-family', 'JetBrains Mono');
+    h1l.setAttribute('text-anchor', 'middle');
+    h1l.textContent = `x1<=${x1Thr.toFixed(2)}`;
+    h1.appendChild(h1l);
+    h1.appendChild(h1c);
+    svg.appendChild(h1);
+
+    const h2 = document.createElementNS(SVGNS,'g');
+    h2.setAttribute('class', 'drag-handle');
+    h2.setAttribute('data-axis', 'y');
+    const h2c = document.createElementNS(SVGNS,'circle');
+    h2c.setAttribute('cx', W/2); h2c.setAttribute('cy', x2Px);
+    h2c.setAttribute('r', '7');
+    h2c.setAttribute('class', 'handle-circle');
+    h2c.setAttribute('fill', '#00f5a0');
+    h2c.setAttribute('stroke', '#06070d');
+    h2c.setAttribute('stroke-width', '2');
+    h2c.setAttribute('filter', 'drop-shadow(0 0 8px #00f5a0)');
+    const h2l = document.createElementNS(SVGNS,'text');
+    h2l.setAttribute('x', W/2 + 14); h2l.setAttribute('y', x2Px + 4);
+    h2l.setAttribute('fill', '#00f5a0');
+    h2l.setAttribute('font-size', '10');
+    h2l.setAttribute('font-family', 'JetBrains Mono');
+    h2l.textContent = `x2<=${x2Thr.toFixed(2)}`;
+    h2.appendChild(h2l);
+    h2.appendChild(h2c);
+    svg.appendChild(h2);
+
+    [h1, h2].forEach(handle => {
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        const axis = handle.dataset.axis;
+        function move(ev) {
+          const px = (ev.clientX - rect.left) * (W / rect.width);
+          const py = (ev.clientY - rect.top) * (H / rect.height);
+          if (axis === 'x') x1Thr = Math.max(0.3, Math.min(5.7, pxToX(px)));
+          else x2Thr = Math.max(0.3, Math.min(5.7, pxToY(py)));
+          render();
+          updateReadouts();
+        }
+        function up() {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+        }
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      });
+    });
+
+    function updateReadouts() {
+      const g = gini(data);
+      function majority(rows) {
+        if (rows.length === 0) return '?';
+        const a = rows.filter(r => r.c === 'A').length;
+        return a > rows.length - a ? 'A' : 'B';
+      }
+      const predTL = majority(TL), predTR = majority(TR), predBL = majority(BL), predBR = majority(BR);
+      let correct = 0;
+      TL.forEach(d => { if (d.c === predTL) correct++; });
+      TR.forEach(d => { if (d.c === predTR) correct++; });
+      BL.forEach(d => { if (d.c === predBL) correct++; });
+      BR.forEach(d => { if (d.c === predBR) correct++; });
+      const acc = (correct / data.length) * 100;
+
+      document.getElementById('rdX1').textContent = x1Thr.toFixed(2);
+      document.getElementById('rdX2').textContent = x2Thr.toFixed(2);
+      document.getElementById('rdGini').textContent = g.toFixed(3);
+      document.getElementById('giniBar').style.width = (g * 100).toFixed(0) + '%';
+      document.getElementById('rdAcc').textContent = acc.toFixed(1) + '%';
+      document.getElementById('accBar').style.width = acc.toFixed(0) + '%';
+      document.getElementById('rTL_A').textContent = TL.filter(d=>d.c==='A').length;
+      document.getElementById('rTL_B').textContent = TL.filter(d=>d.c==='B').length;
+      document.getElementById('rTR_A').textContent = TR.filter(d=>d.c==='A').length;
+      document.getElementById('rTR_B').textContent = TR.filter(d=>d.c==='B').length;
+      document.getElementById('rBL_A').textContent = BL.filter(d=>d.c==='A').length;
+      document.getElementById('rBL_B').textContent = BL.filter(d=>d.c==='B').length;
+      document.getElementById('rBR_A').textContent = BR.filter(d=>d.c==='A').length;
+      document.getElementById('rBR_B').textContent = BR.filter(d=>d.c==='B').length;
+      document.getElementById('tX1').textContent = x1Thr.toFixed(2);
+      document.getElementById('tX2').textContent = x2Thr.toFixed(2);
+    }
+
+    updateReadouts();
+  }
+
+  render();
+})();
+
+/* ========== PLOT LAB ========== */
+(() => {
+  const canvas = document.getElementById('plotCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const mSlider = document.getElementById('mSlider');
+  const etaSlider = document.getElementById('etaSlider');
+  const depthSlider = document.getElementById('depthSlider');
+  const noiseSlider = document.getElementById('noiseSlider');
+  const targetFn = document.getElementById('targetFn');
+
+  const mVal = document.getElementById('mVal');
+  const etaVal = document.getElementById('etaVal');
+  const depthVal = document.getElementById('depthVal');
+  const noiseVal = document.getElementById('noiseVal');
+  const mseVal = document.getElementById('mseVal');
+  const improvementVal = document.getElementById('improvementVal');
+  const loss1 = document.getElementById('loss1');
+  const loss2 = document.getElementById('loss2');
+  const loss3 = document.getElementById('loss3');
+  const loss4 = document.getElementById('loss4');
+
+  function target(x, type) {
+    switch (type) {
+      case 'sine': return 2 * Math.sin(x);
+      case 'poly': return 0.1 * x * x - 1;
+      case 'step': return x < -2 ? -1.5 : (x < 0 ? 0.5 : (x < 2 ? 1.5 : -0.5));
+      case 'spike': return 2 * Math.exp(-Math.pow(x - 2, 2) * 2) - 2 * Math.exp(-Math.pow(x + 2, 2) * 2);
+      default: return 0;
+    }
+  }
+
+  let seed = 17;
+  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const dataX = [];
+  for (let i = 0; i < 60; i++) {
+    const x = -5 + (i / 59) * 10;
+    dataX.push(x);
+  }
+  const dataY = [];
+
+  function generateData(type, sigma) {
+    dataY.length = 0;
+    for (let i = 0; i < dataX.length; i++) {
+      const noise = (rand() - 0.5) * 2 * sigma * 3;
+      dataY.push(target(dataX[i], type) + noise);
+    }
+  }
+
+  function fitBoosted(M, eta, maxDepth, sigma, type) {
+    generateData(type, sigma);
+    const N = dataX.length;
+    const F = new Array(N).fill(0);
+    let firstLoss = 0;
+    const allLosses = [];
+
+    function buildStump(residuals, depth) {
+      function build(lo, hi, d) {
+        if (hi - lo <= 2 || d > depth) {
+          let s = 0;
+          for (let i = lo; i < hi; i++) s += residuals[i];
+          return { leaf: true, val: s / Math.max(1, hi - lo) };
+        }
+        let bestGain = -Infinity, bestIdx = lo, bestThr = dataX[lo];
+        for (let i = lo; i < hi - 1; i++) {
+          const thr = (dataX[i] + dataX[i+1]) / 2;
+          let lSum = 0, rSum = 0, lN = 0, rN = 0;
+          for (let j = lo; j < hi; j++) {
+            if (dataX[j] <= thr) { lSum += residuals[j]; lN++; }
+            else { rSum += residuals[j]; rN++; }
+          }
+          if (lN === 0 || rN === 0) continue;
+          const gain = lN * (lSum/lN)*(lSum/lN) + rN * (rSum/rN)*(rSum/rN);
+          if (gain > bestGain) { bestGain = gain; bestIdx = i; bestThr = thr; }
+        }
+        const left = build(lo, bestIdx + 1, d + 1);
+        const right = build(bestIdx + 1, hi, d + 1);
+        return { leaf: false, thr: bestThr, left, right };
+      }
+      const tree = build(0, residuals.length, 0);
+      function predict(t, x) {
+        if (t.leaf) return t.val;
+        return x <= t.thr ? predict(t.left, x) : predict(t.right, x);
+      }
+      return (x) => predict(tree, x);
+    }
+
+    for (let m = 0; m < M; m++) {
+      const residuals = dataY.map((y, i) => y - F[i]);
+      const predict = buildStump(residuals, maxDepth);
+      for (let i = 0; i < N; i++) F[i] += eta * predict(dataX[i]);
+      const mse = dataY.reduce((s, y, i) => s + (y - F[i]) * (y - F[i]), 0) / N;
+      allLosses.push(mse);
+      if (m === 0) firstLoss = mse;
+    }
+    return { F, losses: allLosses, firstLoss };
+  }
+
+  function draw() {
+    const M = +mSlider.value;
+    const eta = +etaSlider.value;
+    const depth = +depthSlider.value;
+    const sigma = +noiseSlider.value;
+    const type = targetFn.value;
+
+    mVal.textContent = M;
+    etaVal.textContent = eta.toFixed(2);
+    depthVal.textContent = depth;
+    noiseVal.textContent = sigma.toFixed(2);
+
+    const { F, losses, firstLoss } = fitBoosted(M, eta, depth, sigma, type);
+
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    const cw = canvas.clientWidth;
+    const ch = 380;
+    canvas.width = cw * dpr;
+    canvas.height = ch * dpr;
+    canvas.style.height = ch + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.clearRect(0, 0, cw, ch);
+
+    const pad = 30;
+    const xMin = -5, xMax = 5;
+    let yMin = Infinity, yMax = -Infinity;
+    for (let i = 0; i < dataX.length; i++) {
+      yMin = Math.min(yMin, dataY[i], F[i]);
+      yMax = Math.max(yMax, dataY[i], F[i]);
+    }
+    for (let x = xMin; x <= xMax; x += 0.1) {
+      const t = target(x, type);
+      yMin = Math.min(yMin, t);
+      yMax = Math.max(yMax, t);
+    }
+    const yPad = (yMax - yMin) * 0.1;
+    yMin -= yPad; yMax += yPad;
+
+    const xToPx = (x) => pad + ((x - xMin) / (xMax - xMin)) * (cw - 2 * pad);
+    const yToPx = (y) => ch - pad - ((y - yMin) / (yMax - yMin)) * (ch - 2 * pad);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = yMin + (i / 5) * (yMax - yMin);
+      ctx.beginPath();
+      ctx.moveTo(pad, yToPx(y));
+      ctx.lineTo(cw - pad, yToPx(y));
+      ctx.stroke();
+      ctx.fillStyle = '#5a6478';
+      ctx.font = '10px JetBrains Mono';
+      ctx.textAlign = 'right';
+      ctx.fillText(y.toFixed(1), pad - 6, yToPx(y) + 3);
+    }
+    for (let i = 0; i <= 5; i++) {
+      const x = xMin + (i / 5) * (xMax - xMin);
+      ctx.beginPath();
+      ctx.moveTo(xToPx(x), pad);
+      ctx.lineTo(xToPx(x), ch - pad);
+      ctx.stroke();
+      ctx.fillStyle = '#5a6478';
+      ctx.font = '10px JetBrains Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText(x.toFixed(0), xToPx(x), ch - pad + 14);
+    }
+
+    if (yMin < 0 && yMax > 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath();
+      ctx.moveTo(pad, yToPx(0));
+      ctx.lineTo(cw - pad, yToPx(0));
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#ff6b5e';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    for (let x = xMin; x <= xMax; x += 0.05) {
+      const y = target(x, type);
+      if (x === xMin) ctx.moveTo(xToPx(x), yToPx(y));
+      else ctx.lineTo(xToPx(x), yToPx(y));
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(78,229,255,0.5)';
+    for (let i = 0; i < dataX.length; i++) {
+      ctx.beginPath();
+      ctx.arc(xToPx(dataX[i]), yToPx(dataY[i]), 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = '#00f5a0';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < dataX.length; i++) {
+      if (i === 0) ctx.moveTo(xToPx(dataX[i]), yToPx(F[i]));
+      else ctx.lineTo(xToPx(dataX[i]), yToPx(F[i]));
+    }
+    ctx.stroke();
+
+    const finalMSE = losses[losses.length - 1];
+    mseVal.textContent = finalMSE.toFixed(3);
+    improvementVal.textContent = ((1 - finalMSE / Math.max(0.0001, firstLoss)) * 100).toFixed(1) + '%';
+
+    const idx = (k, total) => Math.min(total - 1, Math.floor((k / 4) * (total - 1)));
+    loss1.textContent = losses[idx(0, losses.length)].toFixed(3);
+    loss2.textContent = losses[idx(1, losses.length)].toFixed(3);
+    loss3.textContent = losses[idx(2, losses.length)].toFixed(3);
+    loss4.textContent = losses[losses.length - 1].toFixed(3);
+  }
+
+  [mSlider, etaSlider, depthSlider, noiseSlider, targetFn].forEach(el => {
+    el.addEventListener('input', draw);
+  });
+  window.addEventListener('resize', draw);
+  draw();
+})();
+
+/* ========== FEATURE IMPORTANCE ========== */
+(() => {
+  const svg = document.getElementById('importanceChart');
+  if (!svg) return;
+  const features = [
+    { name: 'Location',      split: 100, gain: 100, shap: 100 },
+    { name: 'Area (sqft)',   split: 75,  gain: 88,  shap: 80 },
+    { name: 'Rooms',         split: 55,  gain: 40,  shap: 50 },
+    { name: 'Age (yrs)',     split: 40,  gain: 55,  shap: 45 },
+    { name: 'Distance CBD',  split: 30,  gain: 65,  shap: 60 },
+    { name: 'School score',  split: 20,  gain: 25,  shap: 30 }
+  ];
+
+  let mode = 'split';
+  const btns = document.querySelectorAll('[data-imp]');
+  const SVGNS = 'http://www.w3.org/2000/svg';
+
+  function render() {
+    svg.innerHTML = '';
+    const W = 500, H = 280, pad = 130, barH = 24;
+    const max = 100;
+    features.forEach((f, i) => {
+      const y = 20 + i * (barH + 12);
+      const val = f[mode];
+      const w = (val / max) * (W - pad - 50);
+
+      const txt = document.createElementNS(SVGNS,'text');
+      txt.setAttribute('x', pad - 10);
+      txt.setAttribute('y', y + barH/2 + 4);
+      txt.setAttribute('fill', '#f0f4ff');
+      txt.setAttribute('font-size', '11');
+      txt.setAttribute('font-family', 'DM Sans');
+      txt.setAttribute('text-anchor', 'end');
+      txt.textContent = f.name;
+      svg.appendChild(txt);
+
+      const bg = document.createElementNS(SVGNS,'rect');
+      bg.setAttribute('x', pad); bg.setAttribute('y', y);
+      bg.setAttribute('width', W - pad - 50); bg.setAttribute('height', barH);
+      bg.setAttribute('fill', 'rgba(255,255,255,0.04)');
+      bg.setAttribute('rx', 4);
+      svg.appendChild(bg);
+
+      const fill = document.createElementNS(SVGNS,'rect');
+      fill.setAttribute('x', pad); fill.setAttribute('y', y);
+      fill.setAttribute('width', 0); fill.setAttribute('height', barH);
+      const colors = { split: '#00f5a0', gain: '#ff6b5e', shap: '#ffc857' };
+      fill.setAttribute('fill', colors[mode]);
+      fill.setAttribute('rx', 4);
+      fill.style.transition = 'width 0.6s cubic-bezier(0.2,0.8,0.2,1)';
+      svg.appendChild(fill);
+      setTimeout(() => fill.setAttribute('width', Math.max(0, w)), 30);
+
+      const v = document.createElementNS(SVGNS,'text');
+      v.setAttribute('x', pad + Math.max(0, w) + 8);
+      v.setAttribute('y', y + barH/2 + 4);
+      v.setAttribute('fill', colors[mode]);
+      v.setAttribute('font-size', '11');
+      v.setAttribute('font-family', 'JetBrains Mono');
+      v.textContent = val.toFixed(0);
+      svg.appendChild(v);
+    });
+  }
+
+  btns.forEach(b => {
+    b.addEventListener('click', () => {
+      mode = b.dataset.imp;
+      btns.forEach(x => { x.style.borderColor = ''; x.style.color = ''; });
+      b.style.borderColor = 'var(--accent)';
+      b.style.color = 'var(--accent)';
+      render();
+    });
+  });
+  btns[0].style.borderColor = 'var(--accent)';
+  btns[0].style.color = 'var(--accent)';
+  render();
+})();
+
+/* ========== QUIZ ========== */
+(() => {
+  const questions = [
+    {
+      q: "Which technique makes LightGBM dramatically faster than pre-sorted GBDT?",
+      options: ["Pre-sorted splits", "Histogram-based binning", "One-hot encoding all features", "Removing all regularization"],
+      correct: 1
+    },
+    {
+      q: "LightGBM grows trees using which strategy?",
+      options: ["Level-wise (breadth-first)", "Random-first", "Leaf-wise (loss-driven)", "Depth-limited only"],
+      correct: 2
+    },
+    {
+      q: "In F_m(x) = F_(m-1)(x) + eta * h_m(x), what does eta control?",
+      options: ["Number of leaves", "Tree depth", "Learning rate (step size)", "Number of features"],
+      correct: 2
+    },
+    {
+      q: "Which loss is typically used for binary classification in LightGBM?",
+      options: ["MSE", "Binary log-loss", "Huber loss", "MAE"],
+      correct: 1
+    },
+    {
+      q: "When should you AVOID LightGBM?",
+      options: ["Large tabular dataset", "Need fast training on structured data", "Tiny dataset needing interpretability", "Feature engineering on tabular features"],
+      correct: 2
+    }
+  ];
+
+  const container = document.getElementById('quizContainer');
+  const scoreEl = document.getElementById('quizScore');
+  const resetBtn = document.getElementById('quizReset');
+  let answered = 0;
+
+  function build() {
+    container.innerHTML = '';
+    answered = 0;
+    scoreEl.textContent = '0';
+    questions.forEach((q, qi) => {
+      const card = document.createElement('div');
+      card.className = 'glass-strong p-6';
+      card.innerHTML = `
+        <div class="flex items-start gap-3 mb-4">
+          <div class="w-7 h-7 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/30 flex items-center justify-center shrink-0">
+            <span class="font-mono text-xs text-[var(--accent)]">${qi+1}</span>
+          </div>
+          <div class="font-medium pt-0.5">${q.q}</div>
+        </div>
+        <div class="space-y-2 ml-10" data-q="${qi}">
+          ${q.options.map((o, oi) => `<div class="quiz-option" data-correct="${q.correct === oi}" data-oi="${oi}">${o}</div>`).join('')}
+        </div>
+      `;
+      container.appendChild(card);
+
+      card.querySelectorAll('.quiz-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          if (card.classList.contains('answered')) return;
+          card.classList.add('answered');
+          const isCorrect = opt.dataset.correct === 'true';
+          opt.classList.add(isCorrect ? 'correct' : 'wrong');
+          if (!isCorrect) {
+            card.querySelectorAll('.quiz-option').forEach(o => {
+              if (o.dataset.correct === 'true') o.classList.add('correct');
+            });
+          }
+          if (isCorrect) {
+            answered++;
+            scoreEl.textContent = answered;
+          }
+          card.querySelectorAll('.quiz-option').forEach(o => o.classList.add('answered'));
+        });
+      });
+    });
+  }
+  build();
+  resetBtn.addEventListener('click', build);
+})();
+
+/* ========== FIT METER ANIMATION ========== */
+(() => {
+  const meter = document.getElementById('fitMeter');
+  if (!meter) return;
+  let pos = 50;
+  let dir = 1;
+  let running = false;
+  function animate() {
+    pos += dir * 0.4;
+    if (pos >= 80) dir = -1;
+    if (pos <= 20) dir = 1;
+    meter.style.setProperty('--pos', pos + '%');
+    if (running) requestAnimationFrame(animate);
+  }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && !running) { running = true; animate(); }
+      else if (!e.isIntersecting) { running = false; }
+    });
+  });
+  io.observe(meter);
+})();
+
+</script>
+</body>
+</html>

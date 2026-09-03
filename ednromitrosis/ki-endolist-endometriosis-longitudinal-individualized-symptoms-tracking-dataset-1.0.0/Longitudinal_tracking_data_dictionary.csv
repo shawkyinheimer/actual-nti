@@ -1,0 +1,8 @@
+Column,Type,Values
+User Id,Numeric,Positive integer
+Day in study,Numeric,Positive integer
+Week day,Character,"Sun, Mon, Tue, Wed, Thu, Fri, Sat"
+Cycle number,Numeric,Positive integer
+Cycle day,Numeric,Positive integer
+First day of period,Numeric,"0, 1"
+Other,Numeric,Non-negative numbers

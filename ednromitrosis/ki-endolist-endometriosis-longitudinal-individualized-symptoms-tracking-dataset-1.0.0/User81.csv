@@ -1,0 +1,18 @@
+"User id","Day in study","Week day","Cycle number","Cycle day","First day of period","Period (0-no, 1-yes)","Bleeding (0-no bleeding, 4-heaviest bleeding)","Vomiting (0-no, 1-yes)","Migraines (0-no pain, 4-worst pain)","Sedural (times)","Nausea (0-no nausea, 4-worst nausea)","Nurofen (times)","Fainting (0-no, 2-yes)","Zaldiar (times)","Endo belly (0-no endo belly , 4-worst endo belly)","Ovulation pain (0-no pain, 10-worst pain)","Type of stool (0-no stool, 7-bowel blockage)","Smell sensitivity (0-no sensitivity, 4-worst sensitivity)","General emotional condition (1-bad, 4-amazing)","General physical condition (1-bad, 4-amazing)","Abitren injection (times)","Painful bowel movement (0-no pain, 4-worst pain)","Pain before bowel movement (0-no pain, 4-worst pain)","Ovulation test values (0.0-4.0)","Endo flare up R (0-no pain, 4-worst pain)","Endo flare up L (0-no pain, 4-worst pain)","Energy / fatigue (0-most fatigued, 10-most energetic)","Frequent need to urinate / incomplete urination / pain after urination (0-no pain, 4-worst pain)"
+81,1,"Fri",,1,1,1,1,0,0,0,0,2,0,0,2,0,0,0,2,2,0,0,0,0,0,0,2,0
+81,2,"Sat",,2,,,,,,,,,,,,,,,,,,,,,,,,
+81,3,"Sun",,3,0,1,4,0,0,0,3,2,0,0,2,2,6,0,2,2,0,3,3,0,0,0,0,0
+81,4,"Mon",,4,,,,,,,,,,,,,,,,,,,,,,,,
+81,5,"Tue",,5,0,1,3,0,0,0,0,0,0,0,2,2,6,0,2,2,0,0,2,0,0,0,2,0
+81,6,"Wed",,6,0,1,3,0,1,0,3,2,0,0,2,2,6,0,3,3,0,0,3,0,3,3,0,0
+81,7,"Thu",,7,,,,,,,,,,,,,,,,,,,,,,,,
+81,8,"Fri",,8,0,1,3,1,0,0,0,2,0,2,2,10,6,0,1,1,0,2,3,0,1,4,0,0
+81,9,"Sat",,9,,,,,,,,,,,,,,,,,,,,,,,,
+81,10,"Sun",,10,,,,,,,,,,,,,,,,,,,,,,,,
+81,11,"Mon",,11,,,,,,,,,,,,,,,,,,,,,,,,
+81,12,"Tue",,12,,,,,,,,,,,,,,,,,,,,,,,,
+81,13,"Wed",,13,,,,,,,,,,,,,,,,,,,,,,,,
+81,14,"Thu",,14,,,,,,,,,,,,,,,,,,,,,,,,
+81,15,"Fri",,15,0,0,0,0,0,,0,,,0,0,0,0,0,1,2,,0,0,0,0,0,0,0
+81,16,"Sat",,16,0,0,0,0,0,0,0,0,0,0,2,2,1,0,2,2,0,0,0,0,0,0,3,0
+81,17,"Sun",,17,0,0,4,0,0,0,0,0,0,0,2,0,4,0,2,2,0,0,2,0,0,0,1,0

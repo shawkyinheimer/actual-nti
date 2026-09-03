@@ -1,0 +1,14 @@
+"User id","Day in study","Week day","Cycle number","Cycle day","First day of period","Period (0-no, 1-yes)","Migraines (0-no pain, 4-worst pain)","Heartburn (0-no heartburn, 4-worst heartburn)","Fatigue (0-no fatigue, 4-worst fatigue)","Endo belly (0-no endo belly , 4-worst endo belly)","Period pain (0-no pain, 4-worst pain)","Ovaries pain (0-no pain, 4-worst pain)","Shoulder pain (0-no pain, 4-worst pain)","Rectal bleeding (0-no bleeding, 4-worst bleeding)","Lower back pain (0-no pain, 4-worst pain)","Painful intercourse (0-no pain, 4-worst pain)","General emotional condition (1-bad, 10-amazing)","General physical condition (1-bad, 10-amazing)","Breast tenderness (0-no pain, 4-worst pain)","Pain radiating down the leg (0-no pain, 4-worst pain)","Abdominal cramps (0-no pain, 4-worst pain)","Feeling of heaviness (0-no pain, 4-worst pain)","Pain after intercourse (0-no pain, 4-worst pain)","Muscle pain / flu like (0-no pain, 4-worst pain)","Ovulation test values (0.0-4.0)"
+50,1,"Wed",,11,0,0,0,0,1,1,0,1,1,0,1,1,9,9,1,1,0,0,0,0,1.2
+50,2,"Thu",,12,0,0,0,0,1,2,0,1,2,0,1,,8,9,0,1,0,0,,0,0.4
+50,3,"Fri",,13,0,0,,,,,,,,,,,,,,,,,,,0.3
+50,4,"Sat",,14,0,0,2,0,2,1,0,1,2,0,1,4,8,7,1,0,0,1,1,0,0.4
+50,5,"Sun",,15,0,0,2,0,1,1,0,1,0,0,1,0,9,8,0,0,2,0,0,0,
+50,6,"Mon",,16,0,0,2,0,2,1,0,1,0,0,1,0,8,7,0,0,1,0,0,2,
+50,7,"Tue",,17,0,0,2,0,2,1,0,0,0,0,1,0,7,6,2,0,0,0,0,1,
+50,8,"Wed",,18,0,0,0,0,2,1,0,2,0,0,1,2,8,8,1,0,0,0,0,0,
+50,9,"Thu",,19,0,0,0,0,1,1,0,1,0,0,2,0,9,8,1,0,2,0,0,0,
+50,10,"Fri",,20,0,0,0,0,0,3,0,2,1,0,2,0,6,7,2,0,2,1,0,0,
+50,11,"Sat",,21,0,0,2,0,0,2,0,2,1,0,2,0,8,7,2,0,2,1,0,0,
+50,12,"Sun",,22,0,0,2,0,2,2,0,1,0,0,2,0,7,6,2,0,3,0,0,0,
+50,13,"Mon",,23,0,0,1,0,2,2,0,1,0,0,2,0,8,8,2,0,3,0,0,0,

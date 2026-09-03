@@ -1,0 +1,145 @@
+"Column name","Description","Code"
+"Affected organs","Ovary",1
+"Affected organs","Ovarian fossa",2
+"Affected organs","Bowel",3
+"Affected organs","Rectum",4
+"Affected organs","Fallopian tubes",5
+"Affected organs","Urinary bladder",6
+"Affected organs","Diaphragm",7
+"Affected organs","Peritoneum",8
+"Affected organs","Pelvic cavity",9
+"Affected organs","Recto-vaginal septum (cul de sac)",10
+"Affected organs","Not relevant",11
+"Alternative therapy","Endometriosis tailored diet",1
+"Alternative therapy","Regular physical activity",2
+"Alternative therapy","Acupuncture",3
+"Alternative therapy","Emotional therapy",4
+"Alternative therapy","Medical massage",5
+"Alternative therapy","Uterine massage (Sobada)",6
+"Alternative therapy","Pelvic floor physiotherapy",7
+"Alternative therapy","Herbal medicine",8
+"Alternative therapy","Yoga",9
+"Alternative therapy","Tai Chi",10
+"Alternative therapy","Homeopathy",11
+"Alternative therapy","Shiatsu",12
+"Alternative therapy","Craniosacral massage",13
+"Alternative therapy","Cold exposure therapy",14
+"Alternative therapy","Reflexology",15
+"Alternative therapy","I am not undergoing complementary treatments",16
+"Comorbidities","Fibromyalgia",1
+"Comorbidities","Chronic fatigue syndrome",2
+"Comorbidities","Lupus",3
+"Comorbidities","Multiple sclerosis",4
+"Comorbidities","Rheumatoid arthritis",5
+"Comorbidities","Crohn's disease",6
+"Comorbidities","Colitis",7
+"Comorbidities","Gastroparesis",8
+"Comorbidities","Celiac disease",9
+"Comorbidities","Diabetes",10
+"Comorbidities","Thyroid diseases",11
+"Comorbidities","Allergies",12
+"Comorbidities","Dysautonomia (e.g., POTS, SFN, etc.)",13
+"Comorbidities","Anemia",14
+"Comorbidities","Migraines",15
+"Comorbidities","Ehlers‑Danlos syndrome",16
+"Comorbidities","Depression/Anxiety",17
+"Comorbidities","Sleep disorders",18
+"Comorbidities","PTSD/CPTSD",19
+"Comorbidities","Asthma",20
+"Comorbidities","Neurodermatitis",21
+"Comorbidities","OCD",22
+"Comorbidities","Coagulation disorder",23
+"Comorbidities","Irritable Bowel Syndrome (IBS)",24
+"Comorbidities","Small fiber neuropathy (SFN)",25
+"Comorbidities","Polycystic ovary syndrome (PCOS)",26
+"Comorbidities","Benign tumors in the pituitary gland",27
+"Comorbidities","Hip joint tear",28
+"Comorbidities","Herniated discs",29
+"Comorbidities","Ehlers-Danlos",30
+"Comorbidities","No additional diseases",31
+"Education","Elementary school",1
+"Education","High school",2
+"Education","Academic - Bachelor's degree",3
+"Education","Academic - Master's degree",4
+"Education","Academic - Doctorate",5
+"Education","Academic - Certificate",6
+"Family history","Mother",1
+"Family history","Grandmother",2
+"Family history","Sister",3
+"Family history","Aunt",4
+"Family history","Cousin",5
+"Family history","Cousin of Grandmother",6
+"Family history","Unknown",0
+"Lesion type","Superficial peritoneal",1
+"Lesion type","Deep",2
+"Lesion type","Nerve involvement",3
+"Lesion type","Adenomyosis",4
+"Lesion type","Ovarian endometrioma",5
+"Lesion type","Lesions in organs distant from the pelvis",6
+"Lesion type","Not relevant",7
+"MH meds","Clonex",1
+"MH meds","SSRI",2
+"MH meds","Modal",3
+"MH meds","I do not take mental health medications",4
+"Marital status","Single",1
+"Marital status","In a relationship",2
+"Marital status","Married / partnered",3
+"Marital status","Divorced",4
+"Marital status","Widowed",5
+"Occupation","Full time job",1
+"Occupation","Part time job",2
+"Occupation","Not working",3
+"Occupation","Student",4
+"Pain meds","Gabapentin (for nerve pain)",1
+"Pain meds","Medical cannabis",2
+"Pain meds","Opioid painkillers",3
+"Pain meds","Prescription anti‑inflammatory painkillers",4
+"Pain meds","Over-the-counter painkillers",5
+"Pain meds","Valium suppositories",6
+"Pain meds","Abitren suppositories",7
+"Pain meds","Baclofen suppositories",8
+"Pain meds","I do not take pain medications",9
+"Regular meds","Folic acid",1
+"Regular meds","Vit. B",2
+"Regular meds","Vit. C",3
+"Regular meds","Vit. D",4
+"Regular meds","Medical Cannabis",5
+"Regular meds","Salbutamol inhaler (Ventolin)",6
+"Regular meds","Levothyroxine Sodium (Euthyrox)",7
+"Regular meds","ICS/LABA inhaler",8
+"Regular meds","Paroxetine",9
+"Regular meds","Fluoxetine Hydrochloride",10
+"Regular meds","Hydroxychloroquine Sulphate (Plaquenil)",11
+"Regular meds","No",12
+"Sleep meds","Medical cannabis",1
+"Sleep meds","Melatonin",2
+"Sleep meds","Bondormin",3
+"Sleep meds","I do not take sleep medications",4
+"Work status","Work from office",1
+"Work status","Work from home",2
+"Work status","Hybrid",3
+"Work status","Not working / Not relevant",4
+"Effect on relationships","Unknown",0
+"Effect on relationships","Yes",1
+"Effect on relationships","No",2
+"Infertility problem","Unknown",0
+"Infertility problem","Yes",1
+"Infertility problem","No",2
+"Adenomyosis","Unknown",0
+"Adenomyosis","Yes",1
+"Adenomyosis","No",2
+"Diagnostic surgery","Unknown",0
+"Diagnostic surgery","Yes",1
+"Diagnostic surgery","No",2
+"Removal of lesions","Unknown",0
+"Removal of lesions","Yes",1
+"Removal of lesions","No",2
+"Diagnosed by endo physician","Unknown",0
+"Diagnosed by endo physician","Yes",1
+"Diagnosed by endo physician","No",2
+"Hormonal therapy","Unknown",0
+"Hormonal therapy","Yes",1
+"Hormonal therapy","No",2
+"Regular period","Unknown",0
+"Regular period","Yes",1
+"Regular period","No",2
